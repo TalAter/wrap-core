@@ -1,0 +1,1 @@
+# Bun config. `[test] preload` is added on the first I/O-touching migration.
