@@ -2,7 +2,7 @@
 
 wrap-core is shared substrate for wrap and sweep. Framework primitives only — TUI, theme, providers, dialog infra, config resolution. No tool-specific semantics. Application graphs (response schemas, concrete state graphs, voice, primary dialogs) live per-consumer.
 
-The promotion guidelines — boundary, architecture decisions, module conventions, recipe — live in `./vault/impl-specs/wrap-core.md`.
+**Read [`vault/impl-specs/wrap-core.md`](./vault/impl-specs/wrap-core.md) before working here** — boundary, architecture decisions, module conventions.
 
 ## Stack
 
@@ -24,8 +24,6 @@ All implementation follows TDD. Failing test first. No exceptions. Aim for high 
 
 ## Vault
 
-When populated, two layers:
-- `vault/<concept>.md` — internals. Why decisions made, deep design notes.
+- `vault/impl-specs/` — policy docs. Holds the wrap-core spec.
+- `vault/<concept>.md` — internals. Why decisions made, deep design notes. Populates with first promotion.
 - `vault/wrap-core-api/<concept>.md` — usage surface for consumer tools. Symlinked into wrap's and sweep's vaults so consumer-side LLMs see them as native.
-
-Empty until the first concept note migrates.
