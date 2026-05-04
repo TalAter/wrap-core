@@ -2,7 +2,7 @@
 
 wrap-core is shared substrate for wrap and sweep. Framework primitives only — TUI, theme, providers, dialog infra, config resolution. No tool-specific semantics. Application graphs (response schemas, concrete state graphs, voice, primary dialogs) live per-consumer.
 
-The migration plan, boundary, decisions, and per-migration recipe live in `../wrap/vault/impl-specs/wrap-core.md` (assumes wrap is checked out as a sibling). Read it before working here.
+The promotion guidelines — boundary, architecture decisions, module conventions, recipe — live in `./vault/impl-specs/wrap-core.md`.
 
 ## Stack
 
