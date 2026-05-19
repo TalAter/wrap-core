@@ -33,7 +33,3 @@ export const wrapFs = createAppFs({ app: "wrap" });
 - **Import-time capture.** The recommended pattern binds `wrapFs` at module load, which reads `$<APP>_HOME` *once* — before any test file's top-level code runs (ESM imports are hoisted). To isolate a test home, set the env var in a Bun preload module wired in `bunfig.toml`, not at the top of a test file.
 - **`exists()` is not a type check.** It returns `true` for files, dirs, and (non-dangling) symlinks alike. If you care about the kind, `statSync(resolve(...))` yourself.
 - **`resolve()` is not sandboxed.** No `..`-escape guarding; passing `"../../etc/passwd"` escapes `root`. Callers must validate untrusted input.
-
-## Internals
-
-See [`wrap-core/vault/impl-specs/fs-and-log.md`](../impl-specs/fs-and-log.md) for the promotion spec (precedence rules, validation rationale, JSONL out-of-scope reasoning).
