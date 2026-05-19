@@ -5,6 +5,9 @@
   "private": true,
   "version": "0.0.1",
   "license": "MIT",
+  "exports": {
+    "./fs": "./src/fs/index.ts"
+  },
   "scripts": {
     "test": "bun test",
     "lint": "bunx biome check . --write --error-on-warnings && bunx tsc --noEmit",
