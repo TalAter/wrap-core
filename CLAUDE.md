@@ -2,7 +2,14 @@
 
 wrap-core is shared substrate for wrap and sweep. Framework primitives only — TUI, theme, providers, dialog infra, config resolution. No tool-specific semantics. Application graphs (response schemas, concrete state graphs, voice, primary dialogs) live per-consumer.
 
-**Read [`vault/impl-specs/wrap-core.md`](./vault/impl-specs/wrap-core.md) before working here** — boundary, architecture decisions, module conventions.
+Deeper context — boundary, decisions, module conventions: [`vault/README.md`](./vault/README.md).
+
+## Promotion
+
+- **Refactor, not a rename.** Each promotion reshapes the wrap module into pure framework code — wrap-specific deps lifted to parameters. Core ends up cleaner than the original.
+- **Demand-pulled by sweep.** No migration project, no schedule. Promote when sweep needs something wrap already has.
+- **Atomic across all three repos.** Each commit leaves wrap, wrap-core, and sweep passing `bun run check`. Both consumers wired in the same promotion.
+- **Repos:** `~/mysite/{wrap,wrap-core,sweep}/`, linked via `bun link`.
 
 ## Stack
 
@@ -24,6 +31,7 @@ All implementation follows TDD. Failing test first. No exceptions. Aim for high 
 
 ## Vault
 
-- `vault/impl-specs/` — policy docs. Holds the wrap-core spec.
-- `vault/<concept>.md` — internals. Why decisions made, deep design notes. Populates with first promotion.
+- `vault/README.md` — handbook: philosophy, boundary, module conventions.
+- `vault/impl-specs/<promotion>.md` — per-promotion build specs.
+- `vault/<concept>.md` — internals from individual promotions (why decisions, deep design notes).
 - `vault/wrap-core-api/<concept>.md` — usage surface for consumer tools. Symlinked into wrap's and sweep's vaults so consumer-side LLMs see them as native.

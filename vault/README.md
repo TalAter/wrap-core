@@ -97,16 +97,16 @@ Intra-core couplings (e.g. `tui` imports `ansi`) are normal — not surprises.
 
 ## Vault
 
-Two layers in wrap-core's `vault/`:
+wrap-core's `vault/`:
 
+- `wrap-core/vault/README.md` — this handbook.
+- `wrap-core/vault/impl-specs/<promotion>.md` — **per-promotion build specs**. Written before a promotion when the surface reshape needs alignment; consumed during the work.
 - `wrap-core/vault/<concept>.md` — **internals** (LLMs working inside core). Standard concept-note style — see wrap's `vault/vault-maintenance.md`. Write one when the promotion involved a non-obvious refactor (lifted deps, surface reshape, rejected alternative). Pure copy-with-rename gets none.
 - `wrap-core/vault/wrap-core-api/<concept>.md` — **usage surface** (LLMs in consumer tools). Compact: frontmatter (`name`, `description`, `package`) → one-paragraph purpose → table of public symbols (Symbol | Shape | Note) → pointer to internals at the bottom.
 
 Each consumer symlinks the api dir: `vault/wrap-core-api → ../node_modules/wrap-core/vault/wrap-core-api`. Symlink committed in each consumer repo (every wrap worktree's `vault/` shares git state, so committing once propagates).
 
 If a wrap concept has shifted into core, wrap can leave a stub note pointing at the canonical doc in wrap-core's vault. Stubs only point *into* core — core never references its consumers.
-
-`wrap-core/vault/README.md` and the first internals/api note land together on whichever promotion first writes any file under `wrap-core/vault/`.
 
 ## Cross-package LLM context
 
