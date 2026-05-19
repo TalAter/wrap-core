@@ -4,10 +4,10 @@ import { dirname, isAbsolute, join } from "node:path";
 
 /**
  * Filesystem handle scoped to a single app's home directory (e.g. `~/.wrap`,
- * `~/.sweep`). Constructed once per process by `createAppHome`; `root` is
+ * `~/.sweep`). Constructed once per process by `createAppFs`; `root` is
  * captured at construction time. All IO is sync utf-8 text.
  */
-export type AppHome = {
+export type AppFs = {
   /** Absolute path of the app-home root. Captured at construction. */
   root: string;
   /** Join `root` with a relative path. No `..`-escape guarding — callers are trusted. */
@@ -21,14 +21,18 @@ export type AppHome = {
   write(relPath: string, content: string): void;
   /** Append to a file under `root`, creating parent directories as needed. */
   append(relPath: string, content: string): void;
-  /** True if any path (file, dir, symlink) exists at `relPath` under `root`. */
+  /**
+   * True if a file, directory, or non-dangling symlink exists at `relPath`
+   * under `root`. Follows symlinks — a symlink whose target is missing reads
+   * `false`.
+   */
   exists(relPath: string): boolean;
 };
 
 const APP_NAME = /^[a-z][a-z0-9-]*$/;
 
 /**
- * Construct an `AppHome` for the given app. App identity is explicit at the
+ * Construct an `AppFs` for the given app. App identity is explicit at the
  * API surface — core has no hardcoded knowledge of any consumer.
  *
  * Resolution precedence (at construction): `opts.home` → `opts.env[<APP>_HOME]`
@@ -40,20 +44,20 @@ const APP_NAME = /^[a-z][a-z0-9-]*$/;
  *
  * `opts.home`, when non-empty, must be absolute.
  */
-export function createAppHome(opts: {
+export function createAppFs(opts: {
   /** App identifier, e.g. `"wrap"`, `"sweep"`. Must match `/^[a-z][a-z0-9-]*$/`. */
   app: string;
   /** Explicit absolute path override (primarily for tests). */
   home?: string;
   /** Env source. Defaults to `process.env`. */
   env?: Record<string, string | undefined>;
-}): AppHome {
+}): AppFs {
   const { app, home, env = process.env } = opts;
   if (!APP_NAME.test(app)) {
-    throw new Error(`createAppHome: invalid app name ${app}`);
+    throw new Error(`createAppFs: invalid app name ${app}`);
   }
   if (home && !isAbsolute(home)) {
-    throw new Error(`createAppHome: opts.home must be an absolute path, got ${home}`);
+    throw new Error(`createAppFs: opts.home must be an absolute path, got ${home}`);
   }
 
   const envKey = `${app.toUpperCase().replace(/-/g, "_")}_HOME`;

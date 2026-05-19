@@ -6,27 +6,33 @@ package: wrap-core/fs
 
 # fs
 
-Per-app filesystem handle. Each consumer constructs one `AppHome` at startup, scoped to its own home directory under `$HOME/.<app>` (or `$<APP>_HOME` if set). All IO is sync utf-8 text, relative to `root`. Parent directories are created on demand by `write` and `append`. Treat the returned handle as a process-wide singleton — `root` is captured at construction; if a different home is needed (tests), construct a fresh `AppHome` rather than mutating env.
+Per-app filesystem handle. Each consumer constructs one `AppFs` at startup, scoped to its own home directory under `$HOME/.<app>` (or `$<APP>_HOME` if set). All IO is sync utf-8 text, relative to `root`. Parent directories are created on demand by `write` and `append`. Treat the returned handle as a process-wide singleton — `root` is captured at construction; if a different home is needed (tests), construct a fresh `AppFs` rather than mutating env.
 
 ## Public symbols
 
 | Symbol | Shape | Note |
 | --- | --- | --- |
-| `createAppHome` | `(opts: { app: string; home?: string; env?: Record<string, string \| undefined> }) => AppHome` | App identity is explicit. `app` must match `/^[a-z][a-z0-9-]*$/`; throws otherwise (even when `home` is supplied). `home`, when non-empty, must be absolute. Resolution precedence: `opts.home` → `env["<APP>_HOME"]` → `~/.<app>`; empty string at any level falls through (`||`, not `??`). |
-| `AppHome.root` | `string` | Absolute path of the app-home root. Captured at construction, not lazy. Not created on disk until a write transitively `mkdir -p`s it. |
-| `AppHome.resolve` | `(relPath: string) => string` | `join(root, relPath)`. No `..`-escape guarding — callers are trusted. |
-| `AppHome.read` | `(relPath: string) => string \| null` | `null` for missing file; `""` for existing empty file. Non-ENOENT errors (EISDIR, EACCES, …) throw. |
-| `AppHome.write` | `(relPath: string, content: string) => void` | Overwrites. Creates parent directories. |
-| `AppHome.append` | `(relPath: string, content: string) => void` | Single-process append. Creates parent directories. Cross-process ordering relies on POSIX `O_APPEND`. |
-| `AppHome.exists` | `(relPath: string) => boolean` | `true` for any existing file, directory, or symlink under `root`. |
+| `createAppFs` | `(opts: { app: string; home?: string; env?: Record<string, string \| undefined> }) => AppFs` | App identity is explicit. `app` must match `/^[a-z][a-z0-9-]*$/`; throws otherwise (even when `home` is supplied). `home`, when non-empty, must be absolute. Resolution precedence: `opts.home` → `env["<APP>_HOME"]` → `~/.<app>`; empty string at any level falls through (`||`, not `??`). |
+| `AppFs.root` | `string` | Absolute path of the app-home root. Captured at construction, not lazy. Not created on disk until a write transitively `mkdir -p`s it. |
+| `AppFs.resolve` | `(relPath: string) => string` | `join(root, relPath)`. No `..`-escape guarding — callers are trusted. |
+| `AppFs.read` | `(relPath: string) => string \| null` | `null` for missing file; `""` for existing empty file. Non-ENOENT errors (EISDIR, EACCES, …) throw. |
+| `AppFs.write` | `(relPath: string, content: string) => void` | Overwrites. Creates parent directories. |
+| `AppFs.append` | `(relPath: string, content: string) => void` | Single-process append. Creates parent directories. Cross-process ordering relies on POSIX `O_APPEND`. |
+| `AppFs.exists` | `(relPath: string) => boolean` | `true` for any existing file, directory, or non-dangling symlink under `root` (follows symlinks — a symlink to a missing target reads `false`). |
 
 ## Usage
 
 ```ts
-import { createAppHome } from "wrap-core/fs";
-export const wrapFs = createAppHome({ app: "wrap" });
+import { createAppFs } from "wrap-core/fs";
+export const wrapFs = createAppFs({ app: "wrap" });
 // wrapFs.read("config.json"), wrapFs.append("logs/app.jsonl", line), wrapFs.root, ...
 ```
+
+## Pitfalls
+
+- **Import-time capture.** The recommended pattern binds `wrapFs` at module load, which reads `$<APP>_HOME` *once* — before any test file's top-level code runs (ESM imports are hoisted). To isolate a test home, set the env var in a Bun preload module wired in `bunfig.toml`, not at the top of a test file.
+- **`exists()` is not a type check.** It returns `true` for files, dirs, and (non-dangling) symlinks alike. If you care about the kind, `statSync(resolve(...))` yourself.
+- **`resolve()` is not sandboxed.** No `..`-escape guarding; passing `"../../etc/passwd"` escapes `root`. Callers must validate untrusted input.
 
 ## Internals
 

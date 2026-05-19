@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { createAppHome } from "../src/fs/index.ts";
+import { createAppFs } from "../src/fs/index.ts";
 import { tmpHome } from "./helpers.ts";
 
 /**
@@ -22,7 +22,7 @@ afterEach(() => {
   }
 });
 
-describe("createAppHome — root resolution", () => {
+describe("createAppFs — root resolution", () => {
   // Parameterized over three names: pins the uppercase + `-` → `_` env-var
   // derivation rule and the default-dir-name rule.
   for (const app of ["wrap", "sweep", "my-tool"] as const) {
@@ -31,20 +31,20 @@ describe("createAppHome — root resolution", () => {
     describe(`app: "${app}"`, () => {
       test(`uses $${envKey} when set`, () => {
         const home = freshHome();
-        const fs = createAppHome({ app, env: { [envKey]: home } });
+        const fs = createAppFs({ app, env: { [envKey]: home } });
         expect(fs.root).toBe(home);
       });
 
       test(`falls back to ~/.${app} when env unset, undefined, or empty`, () => {
         const expected = join(homedir(), `.${app}`);
-        expect(createAppHome({ app, env: {} }).root).toBe(expected);
-        expect(createAppHome({ app, env: { [envKey]: undefined } }).root).toBe(expected);
-        expect(createAppHome({ app, env: { [envKey]: "" } }).root).toBe(expected);
+        expect(createAppFs({ app, env: {} }).root).toBe(expected);
+        expect(createAppFs({ app, env: { [envKey]: undefined } }).root).toBe(expected);
+        expect(createAppFs({ app, env: { [envKey]: "" } }).root).toBe(expected);
       });
 
       test(`opts.home overrides env`, () => {
         const home = freshHome();
-        const fs = createAppHome({
+        const fs = createAppFs({
           app,
           home,
           env: { [envKey]: "/should/be/ignored" },
@@ -57,48 +57,48 @@ describe("createAppHome — root resolution", () => {
   test("root is captured at construction (not lazy)", () => {
     const home = freshHome();
     const env = { WRAP_HOME: home };
-    const fs = createAppHome({ app: "wrap", env });
+    const fs = createAppFs({ app: "wrap", env });
     env.WRAP_HOME = "/changed/after/construction";
     expect(fs.root).toBe(home);
   });
 });
 
-describe("createAppHome — validation", () => {
+describe("createAppFs — validation", () => {
   test("throws on app names not matching /^[a-z][a-z0-9-]*$/", () => {
     for (const bad of ["", "Wrap", "1wrap", "-wrap", "wrap_tool", "wrap.tool", "wrap/x"]) {
-      expect(() => createAppHome({ app: bad })).toThrow(`createAppHome: invalid app name ${bad}`);
+      expect(() => createAppFs({ app: bad })).toThrow(`createAppFs: invalid app name ${bad}`);
     }
   });
 
   test("validates app even when opts.home is supplied", () => {
-    expect(() => createAppHome({ app: "Bad", home: "/tmp/whatever" })).toThrow(
-      "createAppHome: invalid app name Bad",
+    expect(() => createAppFs({ app: "Bad", home: "/tmp/whatever" })).toThrow(
+      "createAppFs: invalid app name Bad",
     );
   });
 
   test("accepts lowercase letters, digits, and hyphens", () => {
     for (const good of ["wrap", "sweep", "my-tool", "x", "a1", "a-b-c-9"]) {
-      expect(() => createAppHome({ app: good, env: {} })).not.toThrow();
+      expect(() => createAppFs({ app: good, env: {} })).not.toThrow();
     }
   });
 
   test("throws when opts.home is a non-absolute path", () => {
-    expect(() => createAppHome({ app: "wrap", home: "relative/path" })).toThrow();
-    expect(() => createAppHome({ app: "wrap", home: "./rel" })).toThrow();
+    expect(() => createAppFs({ app: "wrap", home: "relative/path" })).toThrow();
+    expect(() => createAppFs({ app: "wrap", home: "./rel" })).toThrow();
   });
 
   test("treats empty-string opts.home as unset (falls through to env/default)", () => {
     const home = freshHome();
     expect(isAbsolute(home)).toBe(true);
-    const fs = createAppHome({ app: "wrap", home: "", env: { WRAP_HOME: home } });
+    const fs = createAppFs({ app: "wrap", home: "", env: { WRAP_HOME: home } });
     expect(fs.root).toBe(home);
   });
 });
 
-describe("AppHome — IO", () => {
+describe("AppFs — IO", () => {
   function newFs() {
     const home = freshHome();
-    return { home, fs: createAppHome({ app: "wrap", home }) };
+    return { home, fs: createAppFs({ app: "wrap", home }) };
   }
 
   test("resolve joins root with relative path", () => {
@@ -178,7 +178,7 @@ describe("AppHome — IO", () => {
     // Construct with a home dir whose parent exists but the dir itself doesn't.
     const parent = freshHome();
     const home = join(parent, "not-yet");
-    const fs = createAppHome({ app: "wrap", home });
+    const fs = createAppFs({ app: "wrap", home });
     expect(fs.root).toBe(home);
     expect(existsSync(home)).toBe(false);
     // First write transitively mkdir -p's it.

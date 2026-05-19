@@ -19,9 +19,9 @@ Wrap already has the exact "files under an app-home dir" primitives — `getWrap
 
 Each consumer has its own home directory under `$HOME/.<app>` (default) or `$<APP>_HOME` (env override). Env-var name derives from the app name: uppercased, `-` → `_`. So `app: "wrap"` reads `$WRAP_HOME`, default `~/.wrap`. `app: "sweep"` reads `$SWEEP_HOME`, default `~/.sweep`.
 
-`app` must match `/^[a-z][a-z0-9-]*$/` — the factory throws `Error` with message `"createAppHome: invalid app name <value>"` on invalid input. Validation runs regardless of whether `opts.home` is supplied (the `app` is identity at the API surface, not just an env-key input). POSIX env-var names require a letter-led identifier, and both real consumers fit easily.
+`app` must match `/^[a-z][a-z0-9-]*$/` — the factory throws `Error` with message `"createAppFs: invalid app name <value>"` on invalid input. Validation runs regardless of whether `opts.home` is supplied (the `app` is identity at the API surface, not just an env-key input). POSIX env-var names require a letter-led identifier, and both real consumers fit easily.
 
-`AppHome` is constructed once per process and treated as a fixed handle: `root` is captured at construction, not lazy. Wrap runs against a single home for its whole lifetime; tests that need a different home construct a fresh `AppHome` rather than mutating env mid-run.
+`AppFs` is constructed once per process and treated as a fixed handle: `root` is captured at construction, not lazy. Wrap runs against a single home for its whole lifetime; tests that need a different home construct a fresh `AppFs` rather than mutating env mid-run.
 
 Resolution precedence at construction: `opts.home || env[derive(app)] || join(homedir(), "." + app)`. `||` (not `??`) is deliberate — empty string is treated as unset at every level, matching wrap's existing `getWrapHome` behavior (pinned by `wrap/tests/fs-home.test.ts:25` "falls back to ~/.wrap when WRAP_HOME is unset, undefined, or empty"). `opts.home`, when non-empty, must be an absolute path; the factory throws if it is not. The constructor does not create `root` on disk — `root` may not exist until a write transitively `mkdir -p`s it.
 
@@ -37,7 +37,7 @@ Behaviors (all sync, utf-8 text):
 
 ```ts
 // wrap-core/src/fs/index.ts
-export type AppHome = {
+export type AppFs = {
   root: string;
   resolve(relPath: string): string;
   read(relPath: string): string | null;
@@ -46,19 +46,19 @@ export type AppHome = {
   exists(relPath: string): boolean;
 };
 
-export function createAppHome(opts: {
+export function createAppFs(opts: {
   app: string;                                  // e.g. "wrap", "sweep"
   home?: string;                                // explicit override, primarily for tests
   env?: Record<string, string | undefined>;     // env source, default process.env
-}): AppHome;
+}): AppFs;
 ```
 
 App identity is explicit at the API surface — wrap-core has no hardcoded knowledge of `wrap` or `sweep`. Each consumer wires its own handle once:
 
 ```ts
 // wrap/src/fs/home.ts (post-promotion)
-import { createAppHome } from "wrap-core/fs";
-export const wrapFs = createAppHome({ app: "wrap" });
+import { createAppFs } from "wrap-core/fs";
+export const wrapFs = createAppFs({ app: "wrap" });
 ```
 
 Callers import `wrapFs` from their own wrap-side module. `cache.ts`'s `getWrapHome()` becomes `wrapFs.root`. The file itself stays as the wrap-side bind site for `wrapFs` — really just an import + export const.
@@ -79,11 +79,11 @@ Each step leaves all three repos green (`bun run check`). "Atomic across repos" 
 
 TDD inside a step: write the failing test before the implementation. Test and implementation land in the **same commit** for that step (so the commit boundary stays green) — "test first" is a workflow discipline within the step, not a separate commit.
 
-**Step 1 — wrap-core skeleton.** Land `createAppHome` and its tests in wrap-core. Nothing else changes.
+**Step 1 — wrap-core skeleton.** Land `createAppFs` and its tests in wrap-core. Nothing else changes.
 - `wrap-core/src/fs/index.ts` with the factory.
 - `wrap-core/package.json` adds the first `exports` entry: `"./fs": "./src/fs/index.ts"`.
 - `wrap-core/tests/helpers.ts` (created this step — first general test helper). Sole export is `tmpHome()`: returns `mkdtempSync(join(tmpdir(), "wrap-core-test-"))`. Cleanup is per-test via `afterEach(() => rmSync(home, { recursive: true, force: true }))` in each test file; the helper itself doesn't register hooks (callers track the dir they got back). Do NOT copy the rest of `wrap/tests/helpers.ts` (`seedTestConfig`, `isolateEnv`, etc. depend on wrap-side config modules that don't exist in core). Handbook: "general helpers (used by 2+ test files) live at `wrap-core/tests/helpers.ts` — single shared file."
-- `wrap-core/tests/fs-home.test.ts` — moved + rewritten from `wrap/tests/fs-home.test.ts` (test-first; lands red before implementation, green after). The env-var-derivation / default-dir test is parameterized over `app: "wrap"`, `app: "sweep"`, and `app: "my-tool"` (the last pins the `-` → `_` derivation rule). The IO suite (read/write/append/exists/resolve round-trips) runs once under `app: "wrap"` — `"wrap"` here is just an arbitrary valid app name; core has no hardcoded knowledge of it. Tests construct each `AppHome` with an explicit `home: tmpHome()` — no `process.env` mutation needed. Coverage must include the assertions that exist in wrap's current `fs-home.test.ts` (env unset/undefined/empty-string all fall back to default; `opts.home` overrides env; missing-file → `null`; EISDIR rethrows; nested-mkdir write; append-creates-then-appends), plus the new behaviors added here: `app`-regex throw, non-absolute `opts.home` throw, `exists` returns `true` for both files and dirs.
+- `wrap-core/tests/fs-home.test.ts` — moved + rewritten from `wrap/tests/fs-home.test.ts` (test-first; lands red before implementation, green after). The env-var-derivation / default-dir test is parameterized over `app: "wrap"`, `app: "sweep"`, and `app: "my-tool"` (the last pins the `-` → `_` derivation rule). The IO suite (read/write/append/exists/resolve round-trips) runs once under `app: "wrap"` — `"wrap"` here is just an arbitrary valid app name; core has no hardcoded knowledge of it. Tests construct each `AppFs` with an explicit `home: tmpHome()` — no `process.env` mutation needed. Coverage must include the assertions that exist in wrap's current `fs-home.test.ts` (env unset/undefined/empty-string all fall back to default; `opts.home` overrides env; missing-file → `null`; EISDIR rethrows; nested-mkdir write; append-creates-then-appends), plus the new behaviors added here: `app`-regex throw, non-absolute `opts.home` throw, `exists` returns `true` for both files and dirs.
 - Register wrap-core globally for bun-link: from the **main wrap-core checkout** (`~/mysite/wrap-core/`, not a worktree under `.claude/worktrees/`), run `bun install` then `bun link` once. Verify with `bun pm ls -g | grep wrap-core` — output should show `~/mysite/wrap-core`. This is a per-machine, one-time setup — registration survives across consumer installs and is the precondition for consumer-side `bun link wrap-core` in steps 2/3. Running from a worktree would register the worktree's transient path; if done by mistake, `bun unlink` from the worktree, then re-run `bun link` from the main checkout.
 - `wrap-core/vault/wrap-core-api/fs.md` — consumer-facing api note (frontmatter, one-paragraph purpose, public-symbols table, pointer to internals at the bottom — per handbook §Vault).
 - wrap and sweep untouched.
@@ -104,13 +104,13 @@ TDD inside a step: write the failing test before the implementation. Test and im
 - `sweep/package.json` gets `"wrap-core": "link:wrap-core"`. Then in `sweep/` run `bun link wrap-core` to install the symlink. Mirror wrap's `tsconfig.json` / `biome.json` / `bunfig.toml` setup (per `sweep/CLAUDE.md`'s "mirror wrap" guidance).
 - `sweep/vault/wrap-core-api` symlink committed (from `sweep/`, run `ln -s ../node_modules/wrap-core/vault/wrap-core-api vault/wrap-core-api`; same resolution rule as wrap — target is relative to `sweep/vault/`).
 - `sweep/CLAUDE.md` already carries the wrap-core pointer block — no edit needed (added when sweep was scaffolded).
-- `sweep/src/fs/home.ts` (or wherever sweep wants the handle to live — sweep's choice): `export const sweepFs = createAppHome({ app: "sweep" })`.
-- `sweep/tests/fs-home.test.ts` — minimal acceptance: construct `createAppHome({ app: "sweep", home: tmpHome() })`, append a JSONL line via `fs.append("logs/sweep.jsonl", JSON.stringify({ ts: 1, msg: "hi" }) + "\n")`, read it back via `fs.read`, split on `\n`, `JSON.parse` the first non-empty line, assert the shape. (Sweep does not yet have a `tests/helpers.ts`; inline the `mkdtempSync` call until a second test file earns the helper.)
+- `sweep/src/fs/home.ts` (or wherever sweep wants the handle to live — sweep's choice): `export const sweepFs = createAppFs({ app: "sweep" })`.
+- `sweep/tests/fs-home.test.ts` — minimal acceptance: construct `createAppFs({ app: "sweep", home: tmpHome() })`, append a JSONL line via `fs.append("logs/sweep.jsonl", JSON.stringify({ ts: 1, msg: "hi" }) + "\n")`, read it back via `fs.read`, split on `\n`, `JSON.parse` the first non-empty line, assert the shape. (Sweep does not yet have a `tests/helpers.ts`; inline the `mkdtempSync` call until a second test file earns the helper.)
 - `bun run check` green in all three repos.
 
 ## Acceptance
 
-- Both wrap and sweep consume `createAppHome` from `wrap-core/fs`. No implementation of the helpers remains in wrap — `wrap/src/fs/home.ts` is a two-line `wrapFs` bind site and nothing else.
+- Both wrap and sweep consume `createAppFs` from `wrap-core/fs`. No implementation of the helpers remains in wrap — `wrap/src/fs/home.ts` is a two-line `wrapFs` bind site and nothing else.
 - `bun run check` is green in all three repos at every step boundary (per the atomic-commit rule in the [wrap-core handbook](../README.md)).
 - Wrap's externally observable behavior is unchanged — same paths on disk, same JSONL format (still produced by wrap's own `writer.ts` on top of core's fs primitives), same on-disk effects from `$WRAP_HOME` for existing users (including empty-string falling back to `~/.wrap`). Wrap is not consumed as a library, so internal-only signature changes (dropping `home?: string` parameters) are not externally observable.
 - Sweep can write a JSONL line to `~/.sweep/logs/sweep.jsonl` and read it back using only wrap-core fs APIs (verified by a test in `sweep/tests/`).
