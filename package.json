@@ -6,7 +6,9 @@
   "version": "0.0.1",
   "license": "MIT",
   "exports": {
-    "./fs": "./src/fs/index.ts"
+    "./fs": "./src/fs/index.ts",
+    "./ansi": "./src/ansi/index.ts",
+    "./theme": "./src/theme/index.ts"
   },
   "scripts": {
     "test": "bun test",
