@@ -14,6 +14,7 @@ Deeper context — boundary, decisions, module conventions: [`vault/README.md`](
 ## Stack
 
 - **Runtime:** Bun (TypeScript 5 — version 6 not supported). Use `bun add` / `bun add -D` for dependencies. Never npm or pnpm.
+- **Setup:** `bun run setup` (not bare `bun install`). Runs `bun install` then symlinks singleton peer deps (react, ink) from a sibling consumer to prevent the dual-React crash with `bun link`. Works from worktrees.
 - **Lint/format:** Biome + tsc (`bun run lint` = biome --write + typecheck).
 - **Test:** `bun run test` (files in `tests/`). Run specific tests with `bun test tests/foo.test.ts`.
 - **Full check:** `bun run check` = lint + test.
