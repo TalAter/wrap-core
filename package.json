@@ -8,7 +8,8 @@
   "exports": {
     "./fs": "./src/fs/index.ts",
     "./ansi": "./src/ansi/index.ts",
-    "./theme": "./src/theme/index.ts"
+    "./theme": "./src/theme/index.ts",
+    "./tui": "./src/tui/index.ts"
   },
   "scripts": {
     "test": "bun test",
@@ -16,9 +17,16 @@
     "check": "bun run lint && bun test"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/react": "^19.2.15"
   },
   "peerDependencies": {
+    "@inkjs/ui": "^2",
+    "ink": "^7",
+    "react": "^19",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "string-width": "^8.2.1"
   }
 }
