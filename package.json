@@ -12,7 +12,6 @@
     "./tui": "./src/tui/index.ts"
   },
   "scripts": {
-    "setup": "./scripts/setup",
     "test": "bun test",
     "lint": "bunx biome check . --write --error-on-warnings && bunx tsc --noEmit",
     "check": "bun run lint && bun test"
