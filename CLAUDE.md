@@ -9,12 +9,12 @@ Deeper context — boundary, decisions, module conventions: [`vault/README.md`](
 - **Refactor, not a rename.** Each promotion reshapes the wrap module into pure framework code — wrap-specific deps lifted to parameters. Core ends up cleaner than the original.
 - **Demand-pulled by sweep.** No migration project, no schedule. Promote when sweep needs something wrap already has.
 - **Atomic across all three repos.** Each commit leaves wrap, wrap-core, and sweep passing `bun run check`. Both consumers wired in the same promotion.
-- **Repos:** `~/mysite/{wrap,wrap-core,sweep}/`, linked via `bun link`.
+- **Repos:** wrap, wrap-core, and sweep are separate repos. Consumers depend on published semver versions of wrap-core.
 
 ## Stack
 
 - **Runtime:** Bun (TypeScript 5 — version 6 not supported). Use `bun add` / `bun add -D` for dependencies. Never npm or pnpm.
-- **Setup:** `bun run setup` (not bare `bun install`). Runs `bun install` then symlinks singleton peer deps (react, ink) from a sibling consumer to prevent the dual-React crash with `bun link`. Works from worktrees.
+- **Setup:** `bun run setup` installs this repo's deps. For local cross-repo development, use a Bun workspace outside this repo rather than `bun link`.
 - **Lint/format:** Biome + tsc (`bun run lint` = biome --write + typecheck).
 - **Test:** `bun run test` (files in `tests/`). Run specific tests with `bun test tests/foo.test.ts`.
 - **Full check:** `bun run check` = lint + test.

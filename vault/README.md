@@ -24,13 +24,14 @@ Promotions are **demand-pulled by sweep**. When sweep needs something wrap alrea
 ## Repo layout
 
 Three repos:
-- `wrap` at `~/mysite/wrap/`
-- `wrap-core` at `~/mysite/wrap-core/`
-- `sweep` at `~/mysite/sweep/`
+- `wrap`
+- `wrap-core`
+- `sweep`
 
-Linkage via `bun link`:
-- `bun link` once in `~/mysite/wrap-core/`.
-- Each consumer depends on wrap-core via `"wrap-core": "link:wrap-core"` in its `package.json`.
+Local linkage:
+- Use a Bun workspace outside these repos for cross-repo local dev.
+- A workspace install writes per-package `node_modules` folders with `wrap-core` resolved to the local package checkout.
+- Each consumer still remains a standalone repo and depends on published semver versions of `wrap-core` for CI/release.
 
 ## Boundary
 
@@ -104,14 +105,16 @@ wrap-core's `vault/`:
 - `wrap-core/vault/<concept>.md` — **internals** (LLMs working inside core). Standard concept-note style — see wrap's `vault/vault-maintenance.md`. Write one when the promotion involved a non-obvious refactor (lifted deps, surface reshape, rejected alternative). Pure copy-with-rename gets none.
 - `wrap-core/vault/wrap-core-api/<concept>.md` — **usage surface** (LLMs in consumer tools). Compact: frontmatter (`name`, `description`, `package`) → one-paragraph purpose → table of public symbols (Symbol | Shape | Note) → pointer to internals at the bottom.
 
-Each consumer symlinks the api dir: `vault/wrap-core-api → ../node_modules/wrap-core/vault/wrap-core-api`. Symlink committed in each consumer repo (every wrap worktree's `vault/` shares git state, so committing once propagates).
+Each consumer symlinks the api dir directly to its local `wrap-core` checkout.
+The symlink is committed in each consumer repo so consumer-side LLMs can read
+core usage docs without going through `node_modules`.
 
 If a wrap concept has shifted into core, wrap can leave a stub note pointing at the canonical doc in wrap-core's vault. Stubs only point *into* core — core never references its consumers.
 
 ## Cross-package LLM context
 
 Consumer-side LLM sessions stay aware of wrap-core's capabilities through:
-- `bun link` symlinks wrap-core into `node_modules/wrap-core/` in each consumer. Source + vault readable at that path during dev.
+- Local workspace installs can place `wrap-core` into each consumer's `node_modules` as a symlink to the local package checkout.
 - wrap-core's `CLAUDE.md` and `vault/README.md` are the entry points; each consumer's `CLAUDE.md` carries a pointer added on its first promotion.
 - The `wrap-core-api` symlink in each consumer's vault gives consumer-side LLMs direct access to usage docs as if they were native.
 - Public exports carry minimal TSDoc for IDE-hover surface lookup.
