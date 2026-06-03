@@ -9,7 +9,8 @@
     "./fs": "./src/fs/index.ts",
     "./ansi": "./src/ansi/index.ts",
     "./theme": "./src/theme/index.ts",
-    "./tui": "./src/tui/index.ts"
+    "./tui": "./src/tui/index.ts",
+    "./chrome": "./src/chrome/index.ts"
   },
   "scripts": {
     "test": "bun test",

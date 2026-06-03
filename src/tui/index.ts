@@ -13,11 +13,12 @@ export { DIALOG_CHROME_HEIGHT, DIALOG_CHROME_WIDTH, Dialog, dialogInnerWidth } f
 // Mounting
 export { chooseDialogStdin, DIALOG_INK_OPTIONS } from "./dialog-host.ts";
 export type { KeyBinding, KeyTrigger, NamedKey } from "./key-bindings.ts";
-
 // Hooks
 export { matches as matchKeyTrigger, useKeyBindings } from "./key-bindings.ts";
 export type { BorderSegment, PillProps, PillSegment } from "./pill.tsx";
 export { Pill, pillSegments, pillWidth } from "./pill.tsx";
+export type { RenderedDialog } from "./render-dialog.ts";
+export { openDialog, preloadDialogRuntime, renderDialog } from "./render-dialog.ts";
 export type { TextInputProps } from "./text-input.tsx";
 export { InputFrame, TextInput } from "./text-input.tsx";
 // Context
