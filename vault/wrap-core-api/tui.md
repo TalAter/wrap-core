@@ -20,6 +20,7 @@ Peer deps: `react`, `ink`, `@inkjs/ui`. Lazy-load the entire module (`await impo
 | `ActionBar` | `items: ActionItem[]`, `focused?`, `dividerAfter?` | Bottom-row key hints. Items have `glyph` (hotkey text), `label`, `primary?`, `flashColor?`. |
 | `Checklist` | `items: ChecklistItem[]`, `onToggle`, `onSubmit` | Multi-select with arrow navigation, Space to toggle, Enter to submit. Supports section headers. |
 | `Pill` | `segs: PillSegment[]`, `nerdFonts: boolean`, `compact?` | Inline badge with optional nerd font curves. |
+| `Table` | `columns: TableColumn[]`, `rows: string[][]` | Plain aligned table: bold header row over text rows, columns sized to widest content, fixed gap between them. No borders/interactivity. `TableColumn` = `{ header, align?, color?, headerColor? }`; cell colors default to `copy.body`, headers to `copy.supporting`. Each `rows[i]` is one string per column. Render via `printInline` (it needs a `ThemeProvider`). Last left-aligned column is never right-padded, so piped output has no trailing whitespace. |
 
 ## Context & hooks
 
@@ -29,6 +30,13 @@ Peer deps: `react`, `ink`, `@inkjs/ui`. Lazy-load the entire module (`await impo
 | `useTheme` | `() => CoreThemeTokens` | Read theme from context. Throws if outside `ThemeProvider`. |
 | `useNerdFonts` | `() => boolean` | Read nerdFonts from context. Throws if outside `ThemeProvider`. |
 | `useKeyBindings` | `(bindings: KeyBinding[]) => void` | First-match key dispatcher. Triggers: named keys (`"return"`, `"escape"`), single chars (`"y"`), modifier combos (`{ key: "c", ctrl: true }`). Bare char triggers block on ctrl/meta but tolerate shift. |
+
+## Inline (non-dialog) rendering
+
+| Symbol | Shape | Note |
+| --- | --- | --- |
+| `printInline` | `(element, { theme, nerdFonts, stream? }) => Promise<void>` | **Inline counterpart to `renderDialog`.** Renders `element` ONCE into the terminal's normal buffer (no alt-screen) and commits it to scrollback via Ink's `<Static>` — for plain one-shot CLI output (tables, `--help`, lists), not interaction. Wraps `element` in `ThemeProvider` from the passed `{ theme, nerdFonts }` (consumers hand over plain content, same contract as the dialog APIs). Default `stream` = `process.stdout`. No stdin / no raw mode, so `tool \| grep` and `tool > file` stay safe and pipe-clean (non-TTY streams get no ANSI). Async (imports Ink on demand — no `preloadDialogRuntime` needed); resolves once output has flushed and the app is torn down. |
+| `PrintInlineOptions` | `{ theme: CoreThemeTokens; nerdFonts: boolean; stream?: NodeJS.WriteStream }` | Argument shape for `printInline`. |
 
 ## Mounting utilities
 
@@ -49,6 +57,7 @@ Peer deps: `react`, `ink`, `@inkjs/ui`. Lazy-load the entire module (`await impo
 | `DIALOG_CHROME_WIDTH`, `DIALOG_CHROME_HEIGHT` | Constants for layout math (border + margin cells). |
 | `matchKeyTrigger(trigger, input, key)` | Test whether a key event matches a trigger. Useful in tests. |
 | `pillWidth`, `pillSegments` | Pure functions for pill layout math (used by border rendering). |
+| `tableColumnWidths(columns, rows)`, `padCell(text, width, align?)` | Pure layout helpers behind `Table` (column sizing via `string-width`, cell padding). Exported for testing/custom table chrome. |
 | `fitTop`, `topBorderSegments`, `bottomBorderSegments` | Border rendering functions for custom dialog chrome. |
 | `formatContinuationBadge` | Format a continuation prompt badge. |
 
