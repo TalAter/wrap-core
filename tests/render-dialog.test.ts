@@ -1,12 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createElement, type ReactElement } from "react";
 import { DARK_CORE, LIGHT_CORE } from "../src/theme/index.ts";
-import {
-  __setInkForTests,
-  openDialog,
-  type RenderedDialog,
-  renderDialog,
-} from "../src/tui/render-dialog.ts";
+import { __setInkForTests } from "../src/tui/ink-runtime.ts";
+import { openDialog, type RenderedDialog, renderDialog } from "../src/tui/render-dialog.ts";
 import { ThemeProvider } from "../src/tui/theme-context.tsx";
 
 type FakeInk = Parameters<typeof __setInkForTests>[0];

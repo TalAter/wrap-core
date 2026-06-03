@@ -1,30 +1,17 @@
 import { createElement, type ReactElement } from "react";
 import type { CoreThemeTokens } from "../theme/index.ts";
 import { chooseDialogStdin, DIALOG_INK_OPTIONS } from "./dialog-host.ts";
+import { getInk, preloadInk } from "./ink-runtime.ts";
 import { type MountedTree, mount } from "./mount.ts";
 import { ThemeProvider } from "./theme-context.tsx";
 
-/** Module-level cache for the lazily-imported Ink runtime. Warmed by
- *  `preloadDialogRuntime()` so `renderDialog()` can stay synchronous. */
-let inkCached: typeof import("ink") | null = null;
-
-/** Test-only seam: inject a fake Ink renderer in place of the real cached
- *  module so the mount path can be exercised without a real terminal. Pass
- *  `null` to clear. Marked test-only — production callers warm the cache via
- *  `preloadDialogRuntime()`. */
-export function __setInkForTests(fake: { render: typeof import("ink").render } | null): void {
-  inkCached = fake as typeof import("ink") | null;
-}
-
 /**
- * Warm Ink into a module-level cache. Ink (+ its React/Yoga graph) adds ~100ms
- * of cold-start; call this ahead of time (e.g. overlapped with a network call)
- * so the later `renderDialog()` mount is instant. Idempotent.
+ * Warm Ink into the shared cache so a later `renderDialog()` can stay
+ * synchronous. Thin public alias for the shared loader's `preloadInk()`; Ink
+ * (+ its React/Yoga graph) adds ~100ms of cold-start, so call this ahead of
+ * time (e.g. overlapped with a network call) to hide it. Idempotent.
  */
-export async function preloadDialogRuntime(): Promise<void> {
-  if (inkCached) return;
-  inkCached = await import("ink");
-}
+export const preloadDialogRuntime = preloadInk;
 
 /** Theme inputs every dialog needs: the active token set plus whether the
  *  terminal renders nerd-font glyphs. `renderDialog`/`openDialog` own the
@@ -62,14 +49,12 @@ export type RenderedDialog = {
  * buffer. Do NOT make `unmount()` async or add any post-unmount flush here.
  */
 export function renderDialog(element: ReactElement, opts: DialogTheme): RenderedDialog {
-  if (!inkCached) {
-    throw new Error("renderDialog: preloadDialogRuntime() must resolve first");
-  }
+  const ink = getInk();
   const { theme, nerdFonts } = opts;
   const wrap = (content: ReactElement) =>
     // biome-ignore lint/correctness/noChildrenProp: ThemeProvider types children as a required prop
     createElement(ThemeProvider, { theme, nerdFonts, children: content });
-  const tree: MountedTree = mount(inkCached, wrap(element), {
+  const tree: MountedTree = mount(ink, wrap(element), {
     inkOptions: DIALOG_INK_OPTIONS,
     stdin: chooseDialogStdin(),
   });

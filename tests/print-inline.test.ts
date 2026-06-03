@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createElement, type ReactElement } from "react";
 import { DARK_CORE, LIGHT_CORE } from "../src/theme/index.ts";
-import { __setInkForInlineTests, printInline } from "../src/tui/print-inline.ts";
+import { __setInkForTests } from "../src/tui/ink-runtime.ts";
+import { printInline } from "../src/tui/print-inline.ts";
 import { ThemeProvider } from "../src/tui/theme-context.tsx";
 
 /** A sentinel standing in for Ink's `<Static>` component. */
@@ -33,13 +34,13 @@ function fakeInk() {
 const content = createElement("inline-content");
 
 afterEach(() => {
-  __setInkForInlineTests(null);
+  __setInkForTests(null);
 });
 
 describe("printInline", () => {
   test("wraps the element in ThemeProvider then Static, with the passed theme", async () => {
     const { ink, calls } = fakeInk();
-    __setInkForInlineTests(ink as Parameters<typeof __setInkForInlineTests>[0]);
+    __setInkForTests(ink as Parameters<typeof __setInkForTests>[0]);
     const stream = {} as NodeJS.WriteStream;
 
     await printInline(content, { theme: DARK_CORE, nerdFonts: true, stream });
@@ -63,7 +64,7 @@ describe("printInline", () => {
 
   test("renders to the given stream with stdin-free, non-console-patching options", async () => {
     const { ink, calls } = fakeInk();
-    __setInkForInlineTests(ink as Parameters<typeof __setInkForInlineTests>[0]);
+    __setInkForTests(ink as Parameters<typeof __setInkForTests>[0]);
     const stream = {} as NodeJS.WriteStream;
 
     await printInline(content, { theme: LIGHT_CORE, nerdFonts: false, stream });
@@ -76,7 +77,7 @@ describe("printInline", () => {
 
   test("defaults the stream to process.stdout", async () => {
     const { ink, calls } = fakeInk();
-    __setInkForInlineTests(ink as Parameters<typeof __setInkForInlineTests>[0]);
+    __setInkForTests(ink as Parameters<typeof __setInkForTests>[0]);
 
     await printInline(content, { theme: DARK_CORE, nerdFonts: false });
 
@@ -85,7 +86,7 @@ describe("printInline", () => {
 
   test("tears down the Ink app after flushing", async () => {
     const { ink, calls } = fakeInk();
-    __setInkForInlineTests(ink as Parameters<typeof __setInkForInlineTests>[0]);
+    __setInkForTests(ink as Parameters<typeof __setInkForTests>[0]);
 
     await printInline(content, {
       theme: DARK_CORE,
