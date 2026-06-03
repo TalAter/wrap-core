@@ -42,9 +42,11 @@ export async function printInline(element: ReactElement, opts: PrintInlineOption
   });
 
   const app = ink.render(wrapped, { stdout: stream, patchConsole: false, exitOnCtrlC: false });
-  // `<Static>` commits to scrollback on Ink's leading (synchronous) render; wait
-  // one tick so any trailing throttled flush lands, then tear down. The live
-  // region is empty, so unmount leaves the committed output untouched.
+  // `<Static>` commits to scrollback on Ink's leading (synchronous) render, and
+  // `unmount()` settles any pending throttled frame before tearing down — so the
+  // output is guaranteed flushed without us racing it. The tick just yields once
+  // so a trailing throttled frame can schedule first; the live region is empty,
+  // so unmount leaves the committed output untouched.
   await new Promise<void>((resolve) => setImmediate(resolve));
   app.unmount();
 }

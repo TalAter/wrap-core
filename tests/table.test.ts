@@ -1,5 +1,10 @@
-import { describe, expect, test } from "bun:test";
-import { padCell, tableColumnWidths } from "../src/tui/table.tsx";
+import { afterEach, describe, expect, test } from "bun:test";
+import { createElement } from "react";
+import { stripAnsi } from "../src/ansi/index.ts";
+import { DARK_CORE } from "../src/theme/index.ts";
+import { __setInkForTests } from "../src/tui/ink-runtime.ts";
+import { printInline } from "../src/tui/print-inline.ts";
+import { padCell, Table, tableColumnWidths } from "../src/tui/table.tsx";
 
 describe("tableColumnWidths", () => {
   test("sizes each column to the widest of its header and cells", () => {
@@ -52,5 +57,56 @@ describe("padCell", () => {
   test("pads by display width for wide glyphs", () => {
     // "世" is width 2, so to reach width 4 it needs 2 trailing spaces.
     expect(padCell("世", 4)).toBe("世  ");
+  });
+});
+
+describe("Table (real Ink render)", () => {
+  // Render through printInline + real Ink so the JSX layout contract — column
+  // alignment and the last-column-unpadded rule — is pinned in wrap-core itself,
+  // not only transitively by consumers. afterEach clears the shared Ink cache so
+  // we don't leave the real runtime injected for other suites.
+  afterEach(() => __setInkForTests(null));
+
+  /** A writable stream that just accumulates what Ink writes. */
+  function capture() {
+    const chunks: string[] = [];
+    const stream = {
+      write: (s: string) => {
+        chunks.push(s);
+        return true;
+      },
+      columns: 80,
+      rows: 24,
+      isTTY: false,
+    } as unknown as NodeJS.WriteStream;
+    return { stream, text: () => stripAnsi(chunks.join("")) };
+  }
+
+  test("renders aligned columns to the stream with no trailing whitespace", async () => {
+    const cap = capture();
+    const columns = [{ header: "PKG" }, { header: "SOURCE" }, { header: "WHEN" }];
+    const rows = [
+      ["a", "github.com", "2026-05-20"],
+      ["longer", "x.io", "2026-05-19"],
+    ];
+
+    await printInline(createElement(Table, { columns, rows }), {
+      theme: DARK_CORE,
+      nerdFonts: false,
+      stream: cap.stream,
+    });
+
+    const raw = cap.text();
+    const content = raw.split("\n").filter((l) => l.length > 0);
+
+    // Exact aligned layout: each column padded to its widest cell, two-space gap,
+    // the last (left-aligned) column unpadded so no line has trailing whitespace.
+    expect(content).toEqual([
+      "PKG     SOURCE      WHEN",
+      "a       github.com  2026-05-20",
+      "longer  x.io        2026-05-19",
+    ]);
+    // Non-TTY stream → no ANSI at all (safe to pipe/grep).
+    expect(raw).toBe(stripAnsi(raw));
   });
 });
