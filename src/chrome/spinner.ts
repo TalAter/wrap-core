@@ -52,9 +52,10 @@ export function registerExitTeardown(bytes: string): () => void {
   };
 }
 
-// Cursor-show teardown is registered at module init so the spinner's
-// existing crash guarantee ("terminal's cursor comes back even on SIGINT")
-// continues to hold without a first-spinner-install race.
+// Cursor-show teardown is registered LAZILY, on the first animated spinner
+// (via `ensureCursorTeardown()`), so a process that never hides the cursor
+// never installs the handler. Once registered it stays for the process
+// lifetime so the cursor is restored even on SIGINT.
 let cursorTeardownUnregister: (() => void) | null = null;
 function ensureCursorTeardown(): void {
   if (cursorTeardownUnregister) return;
@@ -68,7 +69,8 @@ export function resetExitGuard(): void {
   cursorTeardownUnregister = null;
 }
 
-/** Test-only alias that also resets the cursor teardown singleton. */
+/** Test-only alias for `resetExitGuard` (which already clears the cursor
+ *  teardown singleton). */
 export function _resetExitTeardownRegistryForTests(): void {
   resetExitGuard();
 }
@@ -79,17 +81,14 @@ export function _resetExitTeardownRegistryForTests(): void {
  * cursor while running. The returned stop function clears the spinner line
  * and restores the cursor, so the spinner disappears completely once stopped.
  *
- * `stop` is idempotent — query.ts calls it from a catch block (to clear the
- * row before logging an error) and again from the surrounding finally.
+ * `stop` is idempotent — safe to call from both a catch block (to clear the
+ * row before logging an error) and a surrounding finally; the second call is
+ * a no-op.
  *
- * On first call, installs a one-time process exit/SIGINT/SIGTERM listener
- * that restores the cursor if the process dies before stop() runs.
+ * On the first animated call, lazily registers a process exit/SIGINT/SIGTERM
+ * teardown that restores the cursor if the process dies before stop() runs.
  *
- * No-op when stderr is not a TTY — keeps `\r` garbage out of redirected
- * logs. The session ensures this is only called outside the alt-screen
- * window (the dialog has its own bottom-border spinner) by passing
- * `showSpinner: false` from the follow-up loops, so there is no need to
- * gate on whether output is intercepted.
+ * No-op when stderr is not a TTY — keeps `\r` garbage out of redirected logs.
  *
  * With `noAnimation`, shows the status text once (no frame, no cursor hide,
  * no interval) and erases it on stop. The caller owns the policy of when to

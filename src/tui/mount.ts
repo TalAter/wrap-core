@@ -27,8 +27,10 @@ export type MountedTree = {
  *
  * Pair with `chooseDialogStdin()` (whose `{ stream, fd }` plugs straight into
  * `stdin`) and `DIALOG_INK_OPTIONS` (or any Ink options object) for `inkOptions`.
- * `ink` is passed in because Ink is a lazily-imported peer dep — the consumer
- * already holds the module from its `await import("ink")`.
+ * `ink` is passed in rather than imported here because this is an internal
+ * primitive: its production caller, `render-dialog.ts`, holds the lazily-
+ * imported Ink module in `preloadDialogRuntime`'s cache and hands it down
+ * (tests pass a fake renderer directly).
  */
 export function mount(
   ink: { render: InkRenderer },

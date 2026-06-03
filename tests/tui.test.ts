@@ -3,7 +3,7 @@ import { openSync } from "node:fs";
 import { clampBufferSize, MAX_BUFFER_BYTES } from "../src/tui/clamp-buffer.ts";
 import { formatContinuationBadge } from "../src/tui/continuation-badge.ts";
 import { Cursor } from "../src/tui/cursor.ts";
-import { chooseDialogStdin } from "../src/tui/dialog-host.ts";
+import { chooseDialogStdin, DIALOG_INK_OPTIONS } from "../src/tui/dialog-host.ts";
 import type { KeyTrigger } from "../src/tui/key-bindings.ts";
 import { matches } from "../src/tui/key-bindings.ts";
 import { pillSegments, pillWidth } from "../src/tui/pill.tsx";
@@ -319,6 +319,22 @@ describe("chooseDialogStdin", () => {
     });
     expect(result.stream).toBe(process.stdin);
     expect(result.fd).toBeNull();
+  });
+});
+
+// ── DIALOG_INK_OPTIONS ──────────────────────────────────────────────
+
+describe("DIALOG_INK_OPTIONS", () => {
+  test("exitOnCtrlC is false so the key-binding layer owns Ctrl+C", () => {
+    // Regression guard: if Ink exits on Ctrl+C, dialogs can't bind it to a
+    // cancel handler and users get torn down mid-prompt.
+    expect(DIALOG_INK_OPTIONS.exitOnCtrlC).toBe(false);
+  });
+
+  test("renders the alt-screen on stderr (stdout reserved for product)", () => {
+    expect(DIALOG_INK_OPTIONS.alternateScreen).toBe(true);
+    expect(DIALOG_INK_OPTIONS.stdout).toBe(process.stderr);
+    expect(DIALOG_INK_OPTIONS.patchConsole).toBe(false);
   });
 });
 
