@@ -10,7 +10,8 @@
     "./ansi": "./src/ansi/index.ts",
     "./theme": "./src/theme/index.ts",
     "./tui": "./src/tui/index.ts",
-    "./chrome": "./src/chrome/index.ts"
+    "./chrome": "./src/chrome/index.ts",
+    "./text": "./src/text/index.ts"
   },
   "scripts": {
     "test": "bun test",
