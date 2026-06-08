@@ -4,6 +4,31 @@ wrap-core is shared substrate for wrap and sweep. Framework primitives only — 
 
 Deeper context — boundary, decisions, module conventions: [`vault/README.md`](./vault/README.md).
 
+## Deep modules, not helpers
+
+Every core module is a **deep abstraction**: a small, intent-revealing interface
+hiding a lot of machinery. Consumers ask for *what* they want, not *how* it
+happens — `openDialog()`, not `mount()`/`unmount()`/`parseSSE()`.
+
+**The dividing line is the same at every layer: core owns the *mechanics*;
+consumers own the *content* and the *domain predicates*.**
+
+- **Mechanics** = how a thing is shaped, sent, retried, streamed, parsed, cached,
+  laid out, or measured; how state accumulates; which provider, transport, or
+  terminal backend is used. Always core.
+- **Content** = schemas, prompt text, palettes, voice, examples, settings keys —
+  the *what*. Inert values, passed in as parameters at construction. Always
+  consumer.
+- **Domain predicates** = "is this LLM response acceptable?", "does this config
+  value validate?" — the small decision functions only the consumer can answer.
+  Callbacks core invokes while running its loop. Always consumer.
+
+**Flexibility.** This is a guideline, not a hill to die on. Surface a sliver of
+internals when it genuinely earns its place — eg `preloadDialogRuntime()` exposes
+mechanics but simplifies callers. Prefer depth; allow the pragmatic
+exception, and record why — in the promotion's `vault/<concept>.md` note, or a
+comment at the exposed surface.
+
 ## Promotion
 
 - **Refactor, not a rename.** Each promotion reshapes the wrap module into pure framework code — wrap-specific deps lifted to parameters. Core ends up cleaner than the original.
