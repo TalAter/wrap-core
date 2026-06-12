@@ -11,7 +11,8 @@
     "./theme": "./src/theme/index.ts",
     "./tui": "./src/tui/index.ts",
     "./chrome": "./src/chrome/index.ts",
-    "./text": "./src/text/index.ts"
+    "./text": "./src/text/index.ts",
+    "./llm": "./src/llm/index.ts"
   },
   "scripts": {
     "test": "bun test",
