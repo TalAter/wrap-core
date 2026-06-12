@@ -29,7 +29,7 @@
     "ink": "^7",
     "react": "^19",
     "typescript": "^5.9.3",
-    "zod": "^4"
+    "zod": "^4.1.8"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.83",

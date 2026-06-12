@@ -3,7 +3,7 @@
 // along for consumer config/wizard surfaces. Internal seams (adapters, the
 // send engine, conversation state, the test provider factory) stay private —
 // the test kind is reachable as data via createLlm({ name: "test", … }).
-// See vault/impl-specs/llm.md.
+// Usage: vault/wrap-core-api/llm.md. Internals rationale: vault/llm.md.
 
 export type {
   AddOptions,
