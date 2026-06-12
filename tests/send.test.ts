@@ -288,6 +288,33 @@ describe("parse retry", () => {
   });
 });
 
+describe("fence-stripping negatives", () => {
+  // Stripping applies only when the ENTIRE response is one clean fenced
+  // block; anything else stays verbatim and fails JSON.parse → invalid_json.
+  const expectInvalidJson = async (raw: string) => {
+    const conv = createConversation(createTestProvider(raw), { system: "sys" });
+    conv.add(user("q"));
+    const error = await conv.send(answerSchema, { retry: false }).catch((e) => e);
+    expect(error).toBeInstanceOf(LlmParseError);
+    expect((error as LlmParseError).reason).toBe("invalid_json");
+    expect((error as LlmParseError).rawText).toBe(raw);
+  };
+
+  test("multiple fenced blocks stay verbatim → invalid_json", async () => {
+    await expectInvalidJson('```json\n{"answer":"a"}\n```\n```json\n{"answer":"b"}\n```');
+  });
+
+  test("prose around a single fenced block stays verbatim → invalid_json", async () => {
+    await expectInvalidJson('Here you go:\n```json\n{"answer":"hi"}\n```\nHope that helps!');
+  });
+
+  test("a fenced block whose inner content contains ``` is not stripped", async () => {
+    // Stripping would yield valid JSON here — the inner-backtick guard
+    // deliberately refuses, so the verbatim text fails JSON.parse.
+    await expectInvalidJson('```json\n{"answer":"```"}\n```');
+  });
+});
+
 describe("test provider playback", () => {
   test("a single response repeats indefinitely across sends", async () => {
     const conv = createConversation(createTestProvider('{"answer":"same"}'), { system: "sys" });
