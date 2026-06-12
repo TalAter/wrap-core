@@ -156,6 +156,24 @@ describe("replayable", () => {
       true, // send echo
     ]);
   });
+
+  test("type guard: filter narrows message to non-null — resume idiom needs no assertion", () => {
+    type Meta = { kind: string };
+    const conv = createConversationState<Meta>();
+    conv.add(user("query"), { meta: { kind: "query" } });
+    conv.add(user("tmp"), { transient: true });
+    conv.beginSend();
+    conv.record({ message: null, attempts: [attempt()] });
+    conv.record({ message: assistant("echo"), attempts: [attempt()] });
+
+    // Compile-time pin: `.message.content` with no `!` and no `?.` —
+    // `filter(replayable)` narrows `message` to LlmMessage, and TMeta survives.
+    const replayed = conv.entries.filter(replayable);
+    const contents: string[] = replayed.map((e) => e.message.content);
+    const meta: Meta | undefined = replayed[0]?.meta;
+    expect(contents).toEqual(["query", "echo"]);
+    expect(meta).toEqual({ kind: "query" });
+  });
 });
 
 describe("entries are the serializable record", () => {
@@ -180,6 +198,6 @@ describe("entries are the serializable record", () => {
     // Replay (consumer re-adding from its durable log) runs over revived
     // entries with no live conversation in hand — the predicate is a free
     // function for exactly that reason.
-    expect(revived.filter((e) => replayable(e)).map((e) => e.message?.content)).toEqual(["q", "a"]);
+    expect(revived.filter(replayable).map((e) => e.message.content)).toEqual(["q", "a"]);
   });
 });

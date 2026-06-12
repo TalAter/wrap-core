@@ -153,8 +153,14 @@ export interface ConversationState<TMeta = unknown> {
  * (via `add`) iff it carries a non-null message and is not a consumed
  * transient. A free function rather than a method because replay typically
  * runs over a deserialized record, with no live conversation in hand.
+ *
+ * A type guard, not a plain boolean: it narrows `message` to non-null, so
+ * the resume idiom `entries.filter(replayable).forEach((e) => fresh.add(e.message))`
+ * compiles without a non-null assertion.
  */
-export function replayable(entry: Entry<unknown>): boolean {
+export function replayable<TMeta>(
+  entry: Entry<TMeta>,
+): entry is Entry<TMeta> & { message: LlmMessage } {
   return entry.message !== null && !(entry.transient && entry.consumed);
 }
 

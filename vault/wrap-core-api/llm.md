@@ -27,7 +27,7 @@ One capability: have a multi-turn structured conversation with an LLM, with zero
 | `SendOptions` | `{ signal?: AbortSignal; retry?: boolean; meta?: TMeta }` | `retry: false` = exactly one attempt — for consumers that want malformed output as a signal (wrap's eval bridge). `meta` annotates the send-produced entry (it is not a message slot). |
 | `Conversation.entries` | `readonly Entry<TMeta>[]` | The append-only, JSON-serializable conversation record. Read it after the await — there are no mid-call callbacks. See *Persisting entries* below before writing it to disk. |
 | `Entry` | `{ message, meta?, transient?, consumed?, attempts?, parsed? }` | `message: null` = not replayable (failed, aborted, and echo-rejected sends). `attempts` = per-physical-call forensics. `parsed` = the validated result on successful sends. |
-| `replayable` | `(entry: Entry<unknown>) => boolean` | The one replay rule: an entry re-enters a fresh conversation (via `add`) iff its message is non-null and it is not a consumed transient. Free function — replay typically runs over a deserialized record. |
+| `replayable` | `<TMeta>(entry: Entry<TMeta>) => entry is Entry<TMeta> & { message: LlmMessage }` | The one replay rule: an entry re-enters a fresh conversation (via `add`) iff its message is non-null and it is not a consumed transient. A type guard — `entries.filter(replayable)` narrows `message` to non-null, so the resume idiom needs no `!`. Free function — replay typically runs over a deserialized record. |
 | `LlmMessage` | `{ role: "user" \| "assistant"; content: string }` | No system or tool roles. |
 | `Attempt` | `{ request, requestWire?, responseWire?, rawText?, durationMs, error? }` | One physical call: the assembled request (system, messages, JSON-schema descriptor), scrubbed wires, the reply text as the provider returned it (the ai-SDK adapter re-serializes structured output into one uniform raw-text shape; verbatim holds for parse failures, claude-code stdout, and test playback), timing, categorical error. |
 | `AttemptRequest` | `{ system, messages, schema? }` | `schema` is a JSON Schema *descriptor* of the live zod schema; absent when not describable. |
@@ -70,7 +70,7 @@ chat.add({ role: "user", content: liveContext }, { transient: true }); // this s
 const result = await chat.send(z.object({ answer: z.string() }), { signal });
 
 persist(chat.entries);                       // mind the wire bodies — gate traces here
-seed.filter(replayable).forEach((e) => fresh.add(e.message!)); // resume
+seed.filter(replayable).forEach((e) => fresh.add(e.message)); // resume — the guard narrows message
 ```
 
 ## Pitfalls
