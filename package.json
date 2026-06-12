@@ -21,13 +21,15 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/react": "^19.2.15"
+    "@types/react": "^19.2.15",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "@inkjs/ui": "^2",
     "ink": "^7",
     "react": "^19",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "^4"
   },
   "dependencies": {
     "string-width": "^8.2.1"

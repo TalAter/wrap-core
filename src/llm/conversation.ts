@@ -1,8 +1,10 @@
 // Conversation state — the entry list behind the LLM module's stateful
 // Conversation. Private sibling: the public surface (`createLlm` →
-// `startConversation`) lands in a later promotion unit and will compose this
-// state with `send`; until then nothing here is exported from index.ts.
+// `startConversation`) lands in a later promotion unit; `send.ts` composes
+// this state with the provider seam. Nothing here is exported from index.ts.
 // See vault/impl-specs/llm.md, settled decisions 1, 3–7.
+
+import type { WireRequest, WireResponse } from "./wires.ts";
 
 /**
  * A single conversation message. System and tool roles are deliberately
@@ -15,12 +17,38 @@ export type LlmMessage = {
 };
 
 /**
- * Per-physical-call record on a send-produced entry: request, scrubbed
- * wires, duration, error. Placeholder shape — `send` (next promotion unit)
- * owns and populates the real fields. Must stay JSON-serializable: attempts
- * ride in entries, which consumers persist.
+ * Categorical error on a failed attempt. `parse` = the reply text could not
+ * become a schema-valid value (send's classification); `provider` = the
+ * transport/provider failed before a usable reply existed.
  */
-export type Attempt = Record<string, unknown>;
+export type AttemptError = { kind: "parse" | "provider"; message: string };
+
+/**
+ * The assembled request behind one physical call. `schema` is a JSON Schema
+ * *descriptor* of the live zod schema (which is not serializable); absent
+ * when the schema could not be described.
+ */
+export type AttemptRequest = {
+  system: string;
+  messages: readonly LlmMessage[];
+  schema?: unknown;
+};
+
+/**
+ * Per-physical-call record on a send-produced entry, populated by `send`.
+ * Must stay JSON-serializable: attempts ride in entries, which consumers
+ * persist — and that durably persists (scrubbed) wire bodies; trace gating
+ * is consumer policy at serialization time.
+ */
+export type Attempt = {
+  request: AttemptRequest;
+  requestWire?: WireRequest;
+  responseWire?: WireResponse;
+  /** The model's reply text, verbatim — absent when the call never settled. */
+  rawText?: string;
+  durationMs: number;
+  error?: AttemptError;
+};
 
 /**
  * One annotated entry in the conversation record.
@@ -165,9 +193,7 @@ export function createConversationState<TMeta = unknown>(): ConversationState<TM
     record(outcome) {
       const entry: MutableEntry<TMeta> = { message: outcome.message };
       if (outcome.meta !== undefined) entry.meta = outcome.meta;
-      // Shallow copy: the abort path seals this entry while the transport is
-      // still settling — a late push into the caller's live attempts
-      // accumulator must not retro-mutate the sealed entry.
+      // Shallow copy — rationale in `record`'s interface TSDoc above.
       if (outcome.attempts !== undefined) entry.attempts = [...outcome.attempts];
       if (outcome.parsed !== undefined) entry.parsed = outcome.parsed;
       entries.push(entry);

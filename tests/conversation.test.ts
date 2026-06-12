@@ -2,14 +2,18 @@ import { describe, expect, test } from "bun:test";
 // Conversation state is a private sibling until the public `createLlm` surface
 // lands (Unit 4) — core tests import it directly.
 import {
+  type Attempt,
   createConversationState,
   type Entry,
-  type LlmMessage,
   replayable,
 } from "../src/llm/conversation.ts";
+import { assistant, user } from "./helpers.ts";
 
-const user = (content: string): LlmMessage => ({ role: "user", content });
-const assistant = (content: string): LlmMessage => ({ role: "assistant", content });
+const attempt = (over?: Partial<Attempt>): Attempt => ({
+  request: { system: "sys", messages: [] },
+  durationMs: 1,
+  ...over,
+});
 
 describe("createConversationState", () => {
   test("starts empty — no constructor seeding; resume is re-adding through add", () => {
@@ -111,12 +115,15 @@ describe("assembly (internal seam for send)", () => {
     conv.beginSend();
     // A failed/aborted send: forensics retained, nothing replayable — the
     // next send must not replay a stale assistant turn.
-    conv.record({ message: null, attempts: [{ error: "aborted" }] });
+    conv.record({
+      message: null,
+      attempts: [attempt({ error: { kind: "provider", message: "aborted" } })],
+    });
     // A successful send: its echo joins subsequent assemblies.
     conv.record({
       message: assistant('{"answer":"hi"}'),
       parsed: { answer: "hi" },
-      attempts: [{ durationMs: 12 }],
+      attempts: [attempt({ durationMs: 12 })],
       meta: { kind: "answer" },
     });
     expect(conv.entries).toHaveLength(3);
@@ -137,9 +144,9 @@ describe("replayable", () => {
 
     conv.beginSend(); // consumes both transients
     // Echo-rejected send: parsed result retained, message withheld from replay.
-    conv.record({ message: null, parsed: { answer: "rejected" }, attempts: [{}] });
+    conv.record({ message: null, parsed: { answer: "rejected" }, attempts: [attempt()] });
     // Successful send: echo replays.
-    conv.record({ message: assistant("echo"), parsed: { answer: "ok" }, attempts: [{}] });
+    conv.record({ message: assistant("echo"), parsed: { answer: "ok" }, attempts: [attempt()] });
 
     expect(conv.entries.map((e) => replayable(e))).toEqual([
       true, // plain message
@@ -161,9 +168,12 @@ describe("entries are the serializable record", () => {
     conv.record({
       message: assistant("a"),
       parsed: { answer: "a" },
-      attempts: [{ durationMs: 12 }],
+      attempts: [attempt({ durationMs: 12 })],
     });
-    conv.record({ message: null, attempts: [{ error: "boom" }] });
+    conv.record({
+      message: null,
+      attempts: [attempt({ error: { kind: "provider", message: "boom" } })],
+    });
 
     const revived: Entry<Meta>[] = JSON.parse(JSON.stringify(conv.entries));
     expect(revived).toEqual([...conv.entries]);

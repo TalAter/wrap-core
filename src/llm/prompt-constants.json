@@ -1,0 +1,3 @@
+{
+  "jsonRetryInstruction": "Respond ONLY with valid JSON matching the schema. No markdown fences, no comments, no text outside the JSON object."
+}

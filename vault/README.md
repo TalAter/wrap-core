@@ -76,9 +76,9 @@ Intra-core couplings (e.g. `tui` imports `ansi`) are normal — not surprises.
 - Intra-core imports use relative paths with `.ts` extensions (`../theme/index.ts`). Mirrors wrap's convention.
 
 **Dependencies**
-- Peer deps for singleton-required libraries (`react`, `ink`, `@inkjs/ui`). Each consumer also lists them. Two copies of React (or two Ink runtimes) silently break hooks, contexts, and the rendering tree.
-- `@types/react` is `devDependency` in wrap-core and each consumer.
-- Direct deps for everything else (`ai`, `@ai-sdk/*`, `zod`, `jsonc-parser`). wrap-core's pin is the source of truth; consumers inherit transitively.
+- Peer deps for singleton-required libraries (`react`, `ink`, `@inkjs/ui`, `zod`). Each consumer also lists them. Two copies of React (or two Ink runtimes) silently break hooks, contexts, and the rendering tree; zod schemas cross the package boundary, and two zod copies risk `z.toJSONSchema` over a foreign instance.
+- `@types/react` is `devDependency` in wrap-core and each consumer; `zod` is also a `devDependency` in wrap-core so core's own tests can build schemas.
+- Direct deps for everything else (`ai`, `@ai-sdk/*`, `jsonc-parser`). wrap-core's pin is the source of truth; consumers inherit transitively.
 
 ## Module shape
 
