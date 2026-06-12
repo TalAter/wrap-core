@@ -1,7 +1,7 @@
 // The send engine — composes a provider with conversation state into the
-// stateful Conversation. Private sibling: the public surface (`createLlm` →
-// `startConversation`) lands in a later promotion unit on top of this
-// factory. See vault/impl-specs/llm.md, settled decisions 2, 3, 8.
+// stateful Conversation. Private sibling: consumers reach this factory only
+// through the public surface (`createLlm` → `startConversation`).
+// See vault/impl-specs/llm.md, settled decisions 2, 3, 8.
 
 import { type ZodType, z } from "zod";
 import {
@@ -94,7 +94,9 @@ function stripFences(text: string): string {
   return inner.trim();
 }
 
-type ParseOutcome<TValue> = { ok: true; value: TValue } | { ok: false; message: string };
+type ParseOutcome<TValue> =
+  | { ok: true; value: TValue }
+  | { ok: false; message: string; reason: "invalid_json" | "invalid_schema" };
 
 /** Fence-strip → JSON.parse → schema.parse. Classification, not transport. */
 function parseReply<TSchema extends ZodType<object>>(
@@ -105,11 +107,15 @@ function parseReply<TSchema extends ZodType<object>>(
   try {
     json = JSON.parse(stripFences(rawText));
   } catch {
-    return { ok: false, message: "Model response was not valid JSON." };
+    return { ok: false, message: "Model response was not valid JSON.", reason: "invalid_json" };
   }
   const result = schema.safeParse(json);
   if (!result.success) {
-    return { ok: false, message: "Model response did not match the expected schema." };
+    return {
+      ok: false,
+      message: "Model response did not match the expected schema.",
+      reason: "invalid_schema",
+    };
   }
   return { ok: true, value: result.data };
 }
@@ -291,7 +297,9 @@ export function createConversation<TMeta = unknown>(
       const firstParse = parseReply(schema, first.reply.text);
       if (firstParse.ok) return succeed(firstParse.value, first.reply.text);
       first.attempt.error = { kind: "parse", message: firstParse.message };
-      if (opts?.retry === false) throw new LlmParseError(firstParse.message, first.reply.text);
+      if (opts?.retry === false) {
+        throw new LlmParseError(firstParse.message, first.reply.text, firstParse.reason);
+      }
 
       // Exactly one parse retry (decision 8): attempt 1's assembly + the
       // failed raw text echoed verbatim + the corrective instruction. The
@@ -312,7 +320,7 @@ export function createConversation<TMeta = unknown>(
       const secondParse = parseReply(schema, second.reply.text);
       if (secondParse.ok) return succeed(secondParse.value, second.reply.text);
       second.attempt.error = { kind: "parse", message: secondParse.message };
-      throw new LlmParseError(secondParse.message, second.reply.text);
+      throw new LlmParseError(secondParse.message, second.reply.text, secondParse.reason);
     } catch (error) {
       // Single failure seam: parse, provider, and abort errors all seal the
       // entry — forensics retained, nothing replayable — then rethrow typed.

@@ -1,7 +1,8 @@
 // Conversation state — the entry list behind the LLM module's stateful
-// Conversation. Private sibling: the public surface (`createLlm` →
-// `startConversation`) lands in a later promotion unit; `send.ts` composes
-// this state with the provider seam. Nothing here is exported from index.ts.
+// Conversation. Private sibling: `send.ts` composes this state with the
+// provider seam, and consumers reach it only through `createLlm` →
+// `startConversation`. Only `replayable` and the entry/message types are
+// re-exported from index.ts.
 // See vault/impl-specs/llm.md, settled decisions 1, 3–7.
 
 import type { WireRequest, WireResponse } from "./wires.ts";

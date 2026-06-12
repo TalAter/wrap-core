@@ -53,12 +53,12 @@ export type ProviderRegistration = {
   supportsStructuredOutputs?: boolean;
 };
 
-export type ApiProvider = {
+/**
+ * A registry entry IS a registration — wizard metadata rides along on the
+ * same object, so `getRegistration` can hand entries back without repacking.
+ */
+export type ApiProvider = ProviderRegistration & {
   displayName: string;
-  kind: ProviderKind;
-  validate?: (entry: ProviderEntry) => string | null;
-  /** See `ProviderRegistration.supportsStructuredOutputs`. */
-  supportsStructuredOutputs?: boolean;
   /** URL where the user gets an API key. Shown on the wizard's API-key screen. */
   apiKeyUrl?: string;
   /** Placeholder text shown in the API-key TextInput. */
@@ -79,9 +79,8 @@ export type ApiProvider = {
   nerdIcon?: string;
 };
 
-export type CliProvider = {
+export type CliProvider = ProviderRegistration & {
   displayName: string;
-  kind: ProviderKind;
   /** Name of the CLI binary. Wizard probes via `Bun.which(probeCmd)`. */
   probeCmd: string;
   /** Nerd Font icon glyph. Shown in the wizard when nerdFonts is enabled. */
@@ -95,7 +94,7 @@ export type CliProvider = {
  */
 function requiresBaseURL(providerName: string) {
   return (entry: ProviderEntry): string | null =>
-    entry.baseURL ? null : `Config error: provider "${providerName}" requires baseURL.`;
+    entry.baseURL ? null : `provider "${providerName}" requires baseURL.`;
 }
 
 /**
@@ -168,6 +167,8 @@ export const CLI_PROVIDERS: Record<string, CliProvider> = {
   "claude-code": {
     displayName: "Claude Code",
     kind: "claude-code",
+    // The claude CLI ships its own default model when --model is omitted.
+    modelOptional: true,
     probeCmd: "claude",
     nerdIcon: "\udb82\udfc9", // nf-md-space_invaders
   },
@@ -194,19 +195,12 @@ export function providerNeedsApiKey(name: string): boolean {
 /**
  * Get the registration for a provider name. Unknown names default to
  * `openai-compat` — they're treated as user-defined OpenAI-compatible
- * endpoints.
+ * endpoints. Known names return their registry entry directly: an
+ * `ApiProvider`/`CliProvider` IS a `ProviderRegistration` with metadata
+ * riding along.
  */
 export function getRegistration(name: string): ProviderRegistration {
-  const api = API_PROVIDERS[name];
-  if (api)
-    return {
-      kind: api.kind,
-      validate: api.validate,
-      supportsStructuredOutputs: api.supportsStructuredOutputs,
-    };
-  const cli = CLI_PROVIDERS[name];
-  if (cli) return { kind: cli.kind, modelOptional: true };
-  return { kind: "openai-compat" };
+  return API_PROVIDERS[name] ?? CLI_PROVIDERS[name] ?? { kind: "openai-compat" };
 }
 
 /**
@@ -218,16 +212,15 @@ export function getRegistration(name: string): ProviderRegistration {
  * call would silently send a placeholder string against a real billed
  * endpoint, which is worse than erroring early.
  *
- * Note: the returned messages carry a `Config error:` prefix baked in —
- * moved shape-intact from wrap. Lifting voice prefixes to consumers belongs
- * to the error-typing work in a later promotion unit.
+ * Messages are bare plain language — no category prefix: voice is content,
+ * so consumers prepend their own (wrap's "Config error:").
  */
 export function validateProviderEntry(name: string, entry: ProviderEntry): string | null {
   if (isKnownProvider(name)) {
     return getRegistration(name).validate?.(entry) ?? null;
   }
   if (!entry.baseURL || !entry.apiKey || !entry.model) {
-    return `Config error: provider "${name}" requires baseURL, apiKey, and model.`;
+    return `provider "${name}" requires baseURL, apiKey, and model.`;
   }
   return null;
 }

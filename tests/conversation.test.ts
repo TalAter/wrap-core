@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-// Conversation state is a private sibling until the public `createLlm` surface
-// lands (Unit 4) — core tests import it directly.
+// Conversation state is a private sibling behind the public `createLlm`
+// surface — core tests import it directly.
 import {
   type Attempt,
   createConversationState,

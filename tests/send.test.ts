@@ -1,15 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-// Everything here is a private sibling until the public `createLlm` surface
-// lands (Unit 4) — core tests import the seams directly.
+// Everything here is a private sibling behind the public `createLlm`
+// surface — core tests import the seams directly.
 import { LlmAbortError, LlmParseError, LlmProviderError } from "../src/llm/errors.ts";
 import promptConstants from "../src/llm/prompt-constants.json";
 import type { ProviderAdapter, ProviderReply, ProviderRequest } from "../src/llm/provider.ts";
 import { type Conversation, createConversation } from "../src/llm/send.ts";
 import { createTestProvider } from "../src/llm/test-provider.ts";
-import { assistant, user } from "./helpers.ts";
-
-const answerSchema = z.object({ answer: z.string() });
+import { answerSchema, assistant, user } from "./helpers.ts";
 
 /**
  * A provider whose calls settle only when the test says so — the test
@@ -269,6 +267,24 @@ describe("parse retry", () => {
     // Exactly one physical call happened — the next send gets response #2.
     conv.add(user("again"));
     await expect(conv.send(answerSchema)).resolves.toEqual({ answer: "ok" });
+  });
+
+  test("LlmParseError.reason pins send's own classification on both branches", async () => {
+    // Wrap's eval bridge consumes this taxonomy directly — re-deriving it by
+    // re-parsing rawText diverges for fenced responses, which send strips
+    // before classifying.
+    const conv = createConversation(createTestProvider(["not json", '{"wrong":1}']), {
+      system: "sys",
+    });
+    conv.add(user("q"));
+
+    const invalidJson = await conv.send(answerSchema, { retry: false }).catch((e) => e);
+    expect(invalidJson).toBeInstanceOf(LlmParseError);
+    expect((invalidJson as LlmParseError).reason).toBe("invalid_json");
+
+    const invalidSchema = await conv.send(answerSchema, { retry: false }).catch((e) => e);
+    expect(invalidSchema).toBeInstanceOf(LlmParseError);
+    expect((invalidSchema as LlmParseError).reason).toBe("invalid_schema");
   });
 });
 

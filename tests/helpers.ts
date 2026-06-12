@@ -1,6 +1,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { z } from "zod";
 import type { LlmMessage } from "../src/llm/conversation.ts";
 
 /**
@@ -15,3 +16,6 @@ export function tmpHome(): string {
 /** `LlmMessage` literal shorthands for conversation/send tests. */
 export const user = (content: string): LlmMessage => ({ role: "user", content });
 export const assistant = (content: string): LlmMessage => ({ role: "assistant", content });
+
+/** The canonical object-shaped send schema used across the LLM tests. */
+export const answerSchema = z.object({ answer: z.string() });

@@ -1,7 +1,7 @@
 // Internal provider seam — what every provider kind (ai-sdk, claude-code
 // subprocess, test playback) implements, and the only thing `send` knows
-// about a provider. Private sibling: the public `createLlm` factory that
-// constructs adapters lands in a later promotion unit.
+// about a provider. Private sibling: `createLlm` constructs the adapters;
+// consumers reach this only through it.
 //
 // Invariant (vault/impl-specs/llm.md, decisions 3 & 8): parse-failure
 // classification lives in `send`, NOT in providers. A provider's job is one
@@ -13,6 +13,19 @@
 import type { ZodType } from "zod";
 import type { LlmMessage } from "./conversation.ts";
 import type { WirePair } from "./wires.ts";
+
+/**
+ * Adapter-construction input: a provider config whose `$ENV_VAR` apiKey
+ * indirection has already been resolved by `createLlm`'s eager validation.
+ * Adapters never read env vars themselves (decision 9 — core names no env
+ * contract; the ai-SDKs' own key fallback is upstream behavior, not ours).
+ */
+export type ResolvedProviderConfig = {
+  name: string;
+  model?: string;
+  apiKey?: string;
+  baseURL?: string;
+};
 
 /**
  * One physical call's input. `system` is conversation-level configuration,

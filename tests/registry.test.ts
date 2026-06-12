@@ -131,8 +131,15 @@ describe("validateProviderEntry", () => {
     expect(validateProviderEntry("openrouter", { apiKey: "x", model: "y" })).toBeNull();
   });
 
-  test("groq without baseURL → error", () => {
-    expect(validateProviderEntry("groq", { apiKey: "x", model: "y" })).toMatch(/requires baseURL/);
+  test("messages are bare plain language — no baked category prefix", () => {
+    // Voice is content: consumers prepend their own prefixes (wrap's
+    // "Config error:"). Exact-string pins so a prefix can't sneak back in.
+    expect(validateProviderEntry("groq", { apiKey: "x", model: "y" })).toBe(
+      'provider "groq" requires baseURL.',
+    );
+    expect(validateProviderEntry("custom", { model: "x" })).toBe(
+      'provider "custom" requires baseURL, apiKey, and model.',
+    );
   });
 
   test("mistral without baseURL → error", () => {
