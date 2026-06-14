@@ -1,6 +1,6 @@
 import { openSync } from "node:fs";
 import { ReadStream } from "node:tty";
-import { ANSI16, type ColorRef } from "../ansi/index.ts";
+import { ANSI16, type ColorRef, type FrameStops, type TokenPair } from "../ansi/index.ts";
 import type { AppFs } from "../fs/index.ts";
 
 // ── Types ────────────────────────────────────────────────────────
@@ -53,6 +53,10 @@ export type CoreThemeTokens = {
     focusIndicator: ColorRef;
     selectedIndicator: ColorRef;
   };
+  severity: {
+    warning: { frame: FrameStops; pill: TokenPair };
+    danger: { frame: FrameStops; pill: TokenPair };
+  };
 };
 
 // ── Reference palettes ───────────────────────────────────────────
@@ -103,6 +107,22 @@ export const DARK_CORE: CoreThemeTokens = {
     focusIndicator: [210, 210, 225],
     selectedIndicator: { base: [120, 230, 160], ansi16: ANSI16.green },
   },
+  severity: {
+    warning: {
+      frame: [
+        [255, 100, 200],
+        [60, 60, 100],
+      ],
+      pill: { fg: [255, 200, 80], bg: [80, 50, 20] },
+    },
+    danger: {
+      frame: [
+        [255, 60, 80],
+        [60, 60, 100],
+      ],
+      pill: { fg: [255, 100, 100], bg: [80, 25, 25] },
+    },
+  },
 };
 
 export const LIGHT_CORE: CoreThemeTokens = {
@@ -150,6 +170,22 @@ export const LIGHT_CORE: CoreThemeTokens = {
     optionSelected: [15, 125, 55],
     focusIndicator: [0, 0, 0],
     selectedIndicator: [15, 125, 55],
+  },
+  severity: {
+    warning: {
+      frame: [
+        [175, 35, 115],
+        [170, 170, 195],
+      ],
+      pill: { fg: [160, 95, 0], bg: [248, 232, 200] },
+    },
+    danger: {
+      frame: [
+        [190, 25, 45],
+        [170, 170, 195],
+      ],
+      pill: { fg: [190, 25, 45], bg: [248, 218, 218] },
+    },
   },
 };
 

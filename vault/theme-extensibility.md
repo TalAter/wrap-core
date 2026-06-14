@@ -5,7 +5,7 @@ description: How consumers extend CoreThemeTokens with tool-specific tokens — 
 
 # Theme extensibility
 
-Core defines `CoreThemeTokens` as a `type` (not `interface`) containing token groups for core's shipped components: `copy`, `dialog`, `input`, `actionBar`, `checklist`, `picker`. Consumers add tool-specific tokens via TypeScript intersection types.
+Core defines `CoreThemeTokens` as a `type` (not `interface`) containing token groups for core's shipped components: `copy`, `dialog`, `input`, `actionBar`, `checklist`, `picker`, `severity`. The `severity` group (`warning`/`danger`, each `{ frame, pill }`) is the shared danger/warning palette both wrap (`risk.medium`/`.high`) and sweep (`caution`/`danger`) derive from. Consumers add tool-specific tokens via TypeScript intersection types.
 
 ## Why `type` not `interface`
 

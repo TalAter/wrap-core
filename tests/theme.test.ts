@@ -50,6 +50,7 @@ describe("CoreThemeTokens shape", () => {
     ],
     checklist: ["row", "rowChecked", "rowFocused", "rowFocusedBg", "sectionLabel", "sectionRule"],
     picker: ["option", "optionFocused", "optionSelected", "focusIndicator", "selectedIndicator"],
+    severity: ["warning", "danger"],
   } as const;
 
   for (const palette of [
@@ -67,6 +68,13 @@ describe("CoreThemeTokens shape", () => {
           expect(Object.keys(section).sort()).toEqual([...fields].sort());
         });
       }
+
+      // `severity` is the only nested group: its members are { frame, pill }
+      // objects, which the one-level check above can't reach.
+      test("severity members have exactly { frame, pill }", () => {
+        expect(Object.keys(palette.theme.severity.warning).sort()).toEqual(["frame", "pill"]);
+        expect(Object.keys(palette.theme.severity.danger).sort()).toEqual(["frame", "pill"]);
+      });
 
       test("does NOT contain wizard, risk, or forget groups", () => {
         const keys = Object.keys(palette.theme);
