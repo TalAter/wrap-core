@@ -101,7 +101,7 @@ Intra-core couplings (e.g. `tui` imports `ansi`) are normal — not surprises.
 wrap-core's `vault/`:
 
 - `wrap-core/vault/README.md` — this handbook.
-- `wrap-core/vault/impl-specs/<promotion>.md` — **per-promotion build specs**. Written before a promotion when the surface reshape needs alignment; consumed during the work.
+- `wrap-core/vault/impl-specs/<promotion>.md` — **per-promotion build specs**. Written before a promotion when the surface reshape needs alignment; consumed during the work. Before writing one, read `impl-specs/README.md`.
 - `wrap-core/vault/<concept>.md` — **internals** (LLMs working inside core). Standard concept-note style — see wrap's `vault/vault-maintenance.md`. Write one when the promotion involved a non-obvious refactor (lifted deps, surface reshape, rejected alternative). Pure copy-with-rename gets none.
 - `wrap-core/vault/wrap-core-api/<concept>.md` — **usage surface** (LLMs in consumer tools). Compact: frontmatter (`name`, `description`, `package`) → one-paragraph purpose → table of public symbols (Symbol | Shape | Note) → pointer to internals at the bottom.
 
