@@ -12,7 +12,8 @@
     "./tui": "./src/tui/index.ts",
     "./chrome": "./src/chrome/index.ts",
     "./text": "./src/text/index.ts",
-    "./llm": "./src/llm/index.ts"
+    "./llm": "./src/llm/index.ts",
+    "./config": "./src/config/index.ts"
   },
   "scripts": {
     "test": "bun test",
@@ -37,6 +38,7 @@
     "@ai-sdk/openai-compatible": "^2.0.49",
     "@openrouter/ai-sdk-provider": "^2.9.1",
     "ai": "^6.0.202",
+    "jsonc-parser": "^3.3.1",
     "string-width": "^8.2.1"
   }
 }
