@@ -17,9 +17,9 @@ Peer deps: `react`, `ink`, `@inkjs/ui`. Lazy-load the entire module (`await impo
 | `Dialog` | `gradientStops: Color[]`, `top?: TopBadge`, `bottomStatus?: string`, `naturalContentWidth: number`, `children` | Centered frame with gradient left/right borders, top badge, bottom status. `children` can be `ReactNode` or `(innerWidth: number) => ReactNode`. |
 | `TextInput` | `value`, `onChange`, `onSubmit`, `placeholder?`, `masked?`, `readOnly?`, `multiline?` | Single-line or multiline. Emacs bindings (Ctrl+A/E, Meta+F/B, Ctrl+K/U/Y). Paste sanitization. 256KB buffer cap. |
 | `InputFrame` | `children` | Themed background box for wrapping input content. |
-| `ActionBar` | `items: ActionItem[]`, `focused?`, `dividerAfter?` | Bottom-row key hints. Items have `glyph` (hotkey text), `label`, `primary?`, `flashColor?`. |
+| `ActionBar` | `items: ActionItem[]`, `focusedIndex?`, `dividerAfter?` | Bottom-row key hints. `focusedIndex` (visual-only) highlights one item; ActionBar owns no keys. Items have `glyph` (hotkey text), `label`, `primary?`, `flashColor?`. |
 | `Checklist` | `items: ChecklistItem[]`, `onToggle`, `onSubmit` | Multi-select with arrow navigation, Space to toggle, Enter to submit. Supports section headers. |
-| `Pill` | `segs: PillSegment[]`, `nerdFonts: boolean`, `compact?` | Inline badge with optional nerd font curves. |
+| `Pill` | `label: string`, `fg`, `bg`, `icon?`, `bold?`, `nerdFonts: boolean` | Inline badge with optional nerd-font curves. Props are `PillProps` (`BadgeColors & { label, icon?, bold?, nerdFonts }`); `icon?` prefixes the label. The pure layout fns `pillSegments`/`pillWidth` (Other exports) take `PillSegment[]` — not this component. |
 | `Table` | `columns: TableColumn[]`, `rows: string[][]` | Plain aligned table: bold header row over text rows, columns sized to widest content, fixed gap between them. No borders/interactivity. `TableColumn` = `{ header, align?, color?, headerColor? }`; cell colors default to `copy.body`, headers to `copy.supporting`. Each `rows[i]` is one string per column. Render via `printInline` (it needs a `ThemeProvider`). Last left-aligned column is never right-padded, so piped output has no trailing whitespace. |
 
 ## Context & hooks
