@@ -1,3 +1,8 @@
+/** Display width of a string in terminal cells — wide CJK/emoji count as 2,
+ *  zero-width and control chars as 0. Use this, not `.length`, whenever a width
+ *  drives terminal layout (dialog sizing, wrapping, alignment). */
+export { default as stringWidth } from "string-width";
+
 /**
  * Truncate a string to roughly `maxChars`, keeping head and tail with
  * an indicator in the middle. Splits at newline boundaries when possible.

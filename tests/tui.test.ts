@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { openSync } from "node:fs";
+import { type ActionItem, actionBarWidth } from "../src/tui/action-bar.tsx";
 import { clampBufferSize, MAX_BUFFER_BYTES } from "../src/tui/clamp-buffer.ts";
 import { formatContinuationBadge } from "../src/tui/continuation-badge.ts";
 import { Cursor } from "../src/tui/cursor.ts";
+import { contentNaturalWidth } from "../src/tui/dialog.tsx";
 import { chooseDialogStdin, DIALOG_INK_OPTIONS } from "../src/tui/dialog-host.ts";
 import type { KeyTrigger } from "../src/tui/key-bindings.ts";
 import { matches } from "../src/tui/key-bindings.ts";
@@ -427,5 +429,67 @@ describe("pill", () => {
   test("pillSegments empty input", () => {
     expect(pillSegments([], false, false)).toEqual([]);
     expect(pillWidth([], false, false)).toBe(0);
+  });
+});
+
+// ── actionBarWidth ──────────────────────────────────────────────────
+
+describe("actionBarWidth", () => {
+  const esc: ActionItem = { glyph: "Esc", label: "Cancel" };
+  const enter: ActionItem = { glyph: "Enter", label: "Run" };
+
+  test("combo item is glyph + space + label", () => {
+    // "Esc" + " " + "Cancel" = 3 + 1 + 6
+    expect(actionBarWidth([esc])).toBe(10);
+  });
+
+  test("approve-style item (glyph is the label's first letter) is label + 2 pad spaces", () => {
+    // " Yes " = 1 + 3 + 1; the underlined hotkey adds no cells
+    expect(actionBarWidth([{ glyph: "Y", label: "Yes" }])).toBe(5);
+  });
+
+  test("default dividers: a ' │ ' (3 cells) between every adjacent pair", () => {
+    // 10 + 3 + (5 + 1 + 3) = 22
+    expect(actionBarWidth([esc, enter])).toBe(22);
+  });
+
+  test("dividerAfter restricts dividers to the listed indices", () => {
+    expect(actionBarWidth([esc, enter], [])).toBe(19); // no divider: 10 + 9
+    expect(actionBarWidth([esc, enter], [0])).toBe(22); // divider after item 0: 10 + 3 + 9
+  });
+
+  test("empty bar is 0", () => {
+    expect(actionBarWidth([])).toBe(0);
+  });
+});
+
+// ── contentNaturalWidth ─────────────────────────────────────────────
+
+describe("contentNaturalWidth", () => {
+  test("widest string's display width wins", () => {
+    expect(contentNaturalWidth(["ab", "abcd", "abc"])).toBe(4);
+  });
+
+  test("number entries are taken as pre-measured cell widths", () => {
+    expect(contentNaturalWidth([10, "ab"])).toBe(10);
+  });
+
+  test("falsy entries are skipped, not measured or filtered to a default", () => {
+    expect(contentNaturalWidth([null, undefined, false, "ab"])).toBe(2);
+    expect(contentNaturalWidth([])).toBe(0);
+  });
+
+  test("a zero-width number is honoured, not treated as falsy", () => {
+    expect(contentNaturalWidth([5, 0])).toBe(5);
+    expect(contentNaturalWidth([0])).toBe(0);
+  });
+
+  test("min floor applies under the content", () => {
+    expect(contentNaturalWidth(["ab"], 5)).toBe(5);
+    expect(contentNaturalWidth(["abcdef"], 5)).toBe(6);
+  });
+
+  test("wide (CJK) characters count as two cells", () => {
+    expect(contentNaturalWidth(["日本"])).toBe(4);
   });
 });

@@ -14,10 +14,10 @@ Peer deps: `react`, `ink`, `@inkjs/ui`. Lazy-load the entire module (`await impo
 
 | Symbol | Props (key) | Note |
 | --- | --- | --- |
-| `Dialog` | `gradientStops: Color[]`, `top?: TopBadge`, `bottomStatus?: string`, `naturalContentWidth: number`, `children` | Centered frame with gradient left/right borders, top badge, bottom status. `children` can be `ReactNode` or `(innerWidth: number) => ReactNode`. |
+| `Dialog` | `gradientStops: Color[]`, `top?: TopBadge`, `bottomStatus?: string`, `sizeTo: SizeBasis[]`, `minContentWidth?: number`, `children` | Centered frame with gradient left/right borders, top badge, bottom status. **Sizes itself to its content:** `sizeTo` lists what determines the width — text lines (measured) and/or pre-measured cell widths (pills, action bars); falsy entries are ignored, so callers pass optional content through unfiltered. Dialog takes the max, floors at `minContentWidth`, folds in its own top pill, then clamps to the terminal. A fixed-width dialog passes `sizeTo={[N]}`. `children` can be `ReactNode` or `(innerWidth: number) => ReactNode`. |
 | `TextInput` | `value`, `onChange`, `onSubmit`, `placeholder?`, `masked?`, `readOnly?`, `multiline?` | Single-line or multiline. Emacs bindings (Ctrl+A/E, Meta+F/B, Ctrl+K/U/Y). Paste sanitization. 256KB buffer cap. |
 | `InputFrame` | `children` | Themed background box for wrapping input content. |
-| `ActionBar` | `items: ActionItem[]`, `focusedIndex?`, `dividerAfter?` | Bottom-row key hints. `focusedIndex` (visual-only) highlights one item; ActionBar owns no keys. Items have `glyph` (hotkey text), `label`, `primary?`, `flashColor?`. |
+| `ActionBar` | `items: ActionItem[]`, `focusedIndex?`, `dividerAfter?` | Bottom-row key hints. `focusedIndex` (visual-only) highlights one item; ActionBar owns no keys. Items have `glyph` (hotkey text), `label`, `primary?`, `flashColor?`. Pure width fn `actionBarWidth(items, dividerAfter?)` (Other exports) — the twin of `pillWidth`, for feeding a Dialog's `sizeTo`. |
 | `Checklist` | `items: ChecklistItem[]`, `onToggle`, `onSubmit` | Multi-select with arrow navigation, Space to toggle, Enter to submit. Supports section headers. |
 | `Pill` | `label: string`, `fg`, `bg`, `icon?`, `bold?`, `nerdFonts: boolean` | Inline badge with optional nerd-font curves. Props are `PillProps` (`BadgeColors & { label, icon?, bold?, nerdFonts }`); `icon?` prefixes the label. The pure layout fns `pillSegments`/`pillWidth` (Other exports) take `PillSegment[]` — not this component. |
 | `Table` | `columns: TableColumn[]`, `rows: string[][]` | Plain aligned table: bold header row over text rows, columns sized to widest content, fixed gap between them. No borders/interactivity. `TableColumn` = `{ header, align?, color?, headerColor? }`; cell colors default to `copy.body`, headers to `copy.supporting`. Each `rows[i]` is one string per column. Render via `printInline` (it needs a `ThemeProvider`). Last left-aligned column is never right-padded, so piped output has no trailing whitespace. |
@@ -55,9 +55,12 @@ Peer deps: `react`, `ink`, `@inkjs/ui`. Lazy-load the entire module (`await impo
 
 | Symbol | Note |
 | --- | --- |
-| `dialogInnerWidth(termCols, naturalContentWidth)` | Derive inner content width for a Dialog. |
+| `contentNaturalWidth(sizeTo, min?)` | Pure function behind `Dialog`'s sizing: widest `sizeTo` contributor (strings measured in cells, numbers as-is, falsy skipped), floored at `min`. The intrinsic-width twin of `dialogInnerWidth` (which then clamps to the terminal). |
+| `SizeBasis` | `string \| number \| false \| null \| undefined` — one `sizeTo` contributor. |
+| `dialogInnerWidth(termCols, naturalContentWidth)` | Clamp a natural content width to the terminal — derive a Dialog's inner content width. |
 | `DIALOG_CHROME_WIDTH`, `DIALOG_CHROME_HEIGHT` | Constants for layout math (border + margin cells). |
 | `matchKeyTrigger(trigger, input, key)` | Test whether a key event matches a trigger. Useful in tests. |
+| `actionBarWidth(items, dividerAfter?)` | Pure rendered width of an `ActionBar` in cells (combo `glyph label`, approve-style `␣label␣`, `│` dividers). For a Dialog's `sizeTo`. |
 | `pillWidth`, `pillSegments` | Pure functions for pill layout math (used by border rendering). |
 | `tableColumnWidths(columns, rows)`, `padCell(text, width, align?)` | Pure layout helpers behind `Table` (column sizing via `string-width`, cell padding). Exported for testing/custom table chrome. |
 | `fitTop`, `topBorderSegments`, `bottomBorderSegments` | Border rendering functions for custom dialog chrome. |
@@ -80,7 +83,7 @@ const [react, { renderDialog, openDialog }] = await Promise.all([
 // Synchronous: throws if preloadDialogRuntime() hasn't resolved. Pass plain
 // content + { theme, nerdFonts } — renderDialog applies ThemeProvider for you.
 const app = renderDialog(
-  react.createElement(Dialog, { gradientStops, naturalContentWidth: 50 }, ...),
+  react.createElement(Dialog, { gradientStops, sizeTo: [50] }, ...),
   { theme, nerdFonts: false },
 );
 // app.rerender(nextElement) re-wraps with the same theme; app.unmount() when done.

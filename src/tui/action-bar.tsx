@@ -1,4 +1,5 @@
 import { Text } from "ink";
+import stringWidth from "string-width";
 import { resolveColorHex } from "../ansi/index.ts";
 import { useTheme } from "./theme-context.tsx";
 
@@ -43,6 +44,32 @@ function isApproveStyle(item: ActionItem): boolean {
   );
 }
 
+function hasDivider(i: number, dividerAfter?: readonly number[]): boolean {
+  return i > 0 && (dividerAfter === undefined || dividerAfter.includes(i - 1));
+}
+
+/**
+ * Rendered width of an `ActionBar` in terminal cells — the twin of `pillWidth`,
+ * for feeding a dialog's `sizeTo` so the bar is never wider than the dialog.
+ * Mirrors the render exactly (and shares its `isApproveStyle`/`hasDivider`, so it
+ * can't drift): a combo item is `glyph + " " + label`, an approve-style item is
+ * `" " + label + " "`, plus a `" │ "` (3 cells) wherever a divider falls. Colour
+ * and focus background add no cells, so width is independent of theme/nerdFonts.
+ */
+export function actionBarWidth(
+  items: readonly ActionItem[],
+  dividerAfter?: readonly number[],
+): number {
+  let w = 0;
+  items.forEach((item, i) => {
+    if (hasDivider(i, dividerAfter)) w += 3; // " │ "
+    w += isApproveStyle(item)
+      ? stringWidth(item.label) + 2
+      : stringWidth(item.glyph) + 1 + stringWidth(item.label);
+  });
+  return w;
+}
+
 export function ActionBar({ items, focusedIndex, dividerAfter }: ActionBarProps) {
   const t = useTheme();
   const selected = resolveColorHex(t.actionBar.selected);
@@ -53,15 +80,15 @@ export function ActionBar({ items, focusedIndex, dividerAfter }: ActionBarProps)
   const selectedBg = resolveColorHex(t.actionBar.selectedBg);
   const selectedShortcut = resolveColorHex(t.actionBar.selectedShortcut);
   const selectedShortcutPrimary = resolveColorHex(t.actionBar.selectedShortcutPrimary);
-  const hasDivider = (i: number): boolean =>
-    i > 0 && (dividerAfter === undefined ? true : dividerAfter.includes(i - 1));
 
   return (
     <Text>
       {items.map((item, i) => {
         const isFocused = focusedIndex === i;
         const bg = isFocused ? selectedBg : undefined;
-        const dividerNode = hasDivider(i) ? <Text color={divider}>{" │ "}</Text> : null;
+        const dividerNode = hasDivider(i, dividerAfter) ? (
+          <Text color={divider}>{" │ "}</Text>
+        ) : null;
 
         if (isApproveStyle(item)) {
           const defaultAccent = item.primary

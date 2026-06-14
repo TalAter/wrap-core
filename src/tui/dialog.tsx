@@ -1,5 +1,6 @@
 import { Box, type DOMElement, Text, useBoxMetrics, useWindowSize } from "ink";
 import { type ReactNode, type RefObject, useRef } from "react";
+import stringWidth from "string-width";
 import type { Color } from "../ansi/index.ts";
 import { resolveColorHex } from "../ansi/index.ts";
 import {
@@ -28,12 +29,40 @@ export function dialogInnerWidth(termCols: number, naturalContentWidth: number):
   return totalWidth - 4;
 }
 
+/** One contributor to a dialog's natural width: a line of text to measure, a
+ *  pre-measured cell width (a pill, an action bar, a table), or a falsy slot for
+ *  optional content the caller passes through without filtering. */
+export type SizeBasis = string | number | false | null | undefined;
+
+/**
+ * Natural (pre-clamp) content width a dialog wants: the widest of its `sizeTo`
+ * contributors, floored at `min`. Strings are measured in display cells, numbers
+ * are taken as-is (already-measured widths), and falsy slots are skipped — so a
+ * caller can pass `[command, explanation, plan]` with `explanation`/`plan`
+ * possibly `undefined` and not have to filter. `Dialog` feeds the result through
+ * `dialogInnerWidth` to clamp it to the terminal.
+ */
+export function contentNaturalWidth(sizeTo: readonly SizeBasis[], min = 0): number {
+  let w = min;
+  for (const item of sizeTo) {
+    if (typeof item === "number") w = Math.max(w, item);
+    else if (typeof item === "string") w = Math.max(w, stringWidth(item));
+  }
+  return w;
+}
+
 type DialogProps = {
   gradientStops: Color[];
   /** Dialog widens to fit the full pill; border falls back to narrow labels or drops it. */
   top?: TopBadge;
   bottomStatus?: string;
-  naturalContentWidth: number;
+  /** What the dialog sizes itself to: text lines (measured) and/or pre-measured
+   *  cell widths (pills, action bars). Passed through unfiltered — falsy entries
+   *  are ignored. Dialog takes the max, floors at `minContentWidth`, folds in its
+   *  own top pill, then clamps to the terminal. */
+  sizeTo: readonly SizeBasis[];
+  /** Floor for the content width, before the terminal clamp. */
+  minContentWidth?: number;
   /** Static JSX, or a render-prop that receives the resolved innerWidth. */
   children: ReactNode | ((innerWidth: number) => ReactNode);
 };
@@ -42,7 +71,8 @@ export function Dialog({
   gradientStops,
   top,
   bottomStatus,
-  naturalContentWidth,
+  sizeTo,
+  minContentWidth,
   children,
 }: DialogProps) {
   const { columns: termCols, rows: termRows } = useWindowSize();
@@ -52,7 +82,7 @@ export function Dialog({
   const fallbackColor = resolveColorHex(theme.copy.body);
 
   const pillNatural = top ? pillWidth(top.segs, nerd, false) : 0;
-  const effectiveNatural = Math.max(naturalContentWidth, pillNatural);
+  const effectiveNatural = Math.max(contentNaturalWidth(sizeTo, minContentWidth), pillNatural);
   const innerWidth = dialogInnerWidth(termCols, effectiveNatural);
   const totalWidth = innerWidth + 4;
   const prepared = fitTop(top, totalWidth - 4, nerd, pillNatural);
