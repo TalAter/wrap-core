@@ -34,3 +34,4 @@ export type { TextInputProps } from "./text-input.tsx";
 export { InputFrame, TextInput } from "./text-input.tsx";
 // Context
 export { ThemeProvider, useNerdFonts, useTheme } from "./theme-context.tsx";
+export { useSpinnerStatus } from "./use-spinner-status.ts";
