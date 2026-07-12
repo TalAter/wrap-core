@@ -61,3 +61,4 @@ All implementation follows TDD. Failing test first. No exceptions. Aim for high 
 - `vault/impl-specs/<promotion>.md` — per-promotion build specs.
 - `vault/<concept>.md` — internals from individual promotions (why decisions, deep design notes).
 - `vault/wrap-core-api/<concept>.md` — usage surface for consumer tools. Symlinked into wrap's and sweep's vaults so consumer-side LLMs see them as native.
+- `vault/dependency-model.md` — how wrap-core actually resolves today (local workspace linking vs. a separate CI-only mechanism), vs. the published-semver end state described above. Read before touching dependency wiring, build scripts, or release workflows in any consumer. Also symlinked into wrap's and sweep's vaults.
