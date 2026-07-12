@@ -38,6 +38,8 @@ describe("API_PROVIDERS / CLI_PROVIDERS registry", () => {
 
   test("anthropic and openai recommended regexes match expected flagships", () => {
     expect(API_PROVIDERS.anthropic?.recommendedModelRegex?.test("claude-sonnet-4-6")).toBe(true);
+    // Sonnet 5 dropped the two-segment version scheme (no more "-4-6" style suffix).
+    expect(API_PROVIDERS.anthropic?.recommendedModelRegex?.test("claude-sonnet-5")).toBe(true);
     expect(API_PROVIDERS.anthropic?.recommendedModelRegex?.test("claude-haiku-4-5")).toBe(false);
     expect(API_PROVIDERS.openai?.recommendedModelRegex?.test("gpt-5")).toBe(true);
     expect(API_PROVIDERS.openai?.recommendedModelRegex?.test("gpt-5.1")).toBe(true);

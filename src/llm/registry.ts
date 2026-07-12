@@ -108,7 +108,7 @@ export const API_PROVIDERS: Record<string, ApiProvider> = {
     kind: "anthropic",
     apiKeyUrl: "https://console.anthropic.com/settings/keys",
     apiKeyPlaceholder: "sk-ant-api03-",
-    recommendedModelRegex: /^claude-sonnet-\d+-\d+$/,
+    recommendedModelRegex: /^claude-sonnet(-\d+)+$/,
     nerdIcon: "\ue754", // nf-dev-azure
   },
   openai: {
