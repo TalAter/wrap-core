@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { EventEmitter } from "node:events";
 import { rmSync } from "node:fs";
 import { createAppFs } from "../src/fs/index.ts";
 import {
@@ -8,8 +9,10 @@ import {
   DARK_CORE,
   getCachedAppearance,
   getTheme,
+  hasDa1Response,
   LIGHT_CORE,
   parseOsc11Response,
+  readProbeReply,
   resolveAppearance,
   resolveTheme,
   setTheme,
@@ -323,5 +326,156 @@ describe("resolveAppearance", () => {
       const result = await resolveAppearance({ envVarName: "MY_THEME" });
       expect(result).toBe("dark");
     });
+  });
+});
+
+// ── Cache is best-effort ─────────────────────────────────────────
+
+describe("appearance cache never breaks resolution", () => {
+  const brokenFs = {
+    read() {
+      throw new Error("EACCES: permission denied");
+    },
+    write() {
+      throw new Error("EACCES: permission denied");
+    },
+  } as unknown as Parameters<typeof getCachedAppearance>[0];
+
+  test("getCachedAppearance returns null when the read throws", () => {
+    expect(getCachedAppearance(brokenFs)).toBeNull();
+  });
+
+  test("cacheAppearance swallows write failures", () => {
+    expect(() => cacheAppearance(brokenFs, "dark")).not.toThrow();
+  });
+
+  test("resolveAppearance falls back to default on a broken fs", async () => {
+    const prev = process.env.MY_THEME;
+    delete process.env.MY_THEME;
+    try {
+      const result = await resolveAppearance({ envVarName: "MY_THEME", fs: brokenFs });
+      expect(result).toBe("dark");
+    } finally {
+      if (prev !== undefined) process.env.MY_THEME = prev;
+    }
+  });
+});
+
+// ── Background probe protocol ────────────────────────────────────
+
+describe("hasDa1Response", () => {
+  test("matches a typical DA1 reply", () => {
+    expect(hasDa1Response("\x1b[?65;1;9c")).toBe(true);
+  });
+
+  test("matches a minimal DA1 reply", () => {
+    expect(hasDa1Response("\x1b[?1;2c")).toBe(true);
+  });
+
+  test("matches a DA1 reply appended after an OSC 11 reply", () => {
+    expect(hasDa1Response("\x1b]11;rgb:ffff/ffff/ffff\x07\x1b[?65;1;9c")).toBe(true);
+  });
+
+  test("does not match a partial DA1 reply", () => {
+    expect(hasDa1Response("\x1b[?65;1")).toBe(false);
+  });
+
+  test("does not match an OSC 11 reply alone", () => {
+    expect(hasDa1Response("\x1b]11;rgb:ffff/ffff/ffff\x07")).toBe(false);
+  });
+
+  test("does not match a cursor position report", () => {
+    expect(hasDa1Response("\x1b[12;40R")).toBe(false);
+  });
+});
+
+class FakeTtyStream extends EventEmitter {
+  rawMode: boolean | null = null;
+  destroyed = false;
+  setRawMode(mode: boolean): void {
+    this.rawMode = mode;
+  }
+  destroy(): void {
+    this.destroyed = true;
+  }
+}
+
+describe("readProbeReply", () => {
+  test("writes the OSC 11 query followed by the DA1 sentinel", async () => {
+    const stream = new FakeTtyStream();
+    const writes: string[] = [];
+    const promise = readProbeReply(stream, (s: string) => writes.push(s), 20);
+    stream.emit("data", Buffer.from("\x1b[?65;1;9c"));
+    await promise;
+    expect(writes.join("")).toBe("\x1b]11;?\x07\x1b[c");
+  });
+
+  test("resolves the parsed appearance once the DA1 reply arrives", async () => {
+    const stream = new FakeTtyStream();
+    const promise = readProbeReply(stream, () => {}, 5000);
+    stream.emit("data", Buffer.from("\x1b]11;rgb:ffff/ffff/ffff\x07\x1b[?65;1;9c"));
+    expect(await promise).toBe("light");
+  });
+
+  test("handles replies split across chunks", async () => {
+    const stream = new FakeTtyStream();
+    const promise = readProbeReply(stream, () => {}, 5000);
+    stream.emit("data", Buffer.from("\x1b]11;rgb:1e1e/"));
+    stream.emit("data", Buffer.from("1e1e/1e1e\x07\x1b[?"));
+    stream.emit("data", Buffer.from("65;1;9c"));
+    expect(await promise).toBe("dark");
+  });
+
+  test("resolves null when DA1 arrives without an OSC 11 reply", async () => {
+    const stream = new FakeTtyStream();
+    const promise = readProbeReply(stream, () => {}, 5000);
+    stream.emit("data", Buffer.from("\x1b[?65;1;9c"));
+    expect(await promise).toBeNull();
+  });
+
+  test("resolves the buffered OSC reply at timeout when DA1 never arrives", async () => {
+    const stream = new FakeTtyStream();
+    const promise = readProbeReply(stream, () => {}, 20);
+    stream.emit("data", Buffer.from("\x1b]11;rgb:ffff/ffff/ffff\x07"));
+    expect(await promise).toBe("light");
+  });
+
+  test("OSC reply without DA1 resolves after a short grace, not the full backstop", async () => {
+    // Backstop far beyond bun's test timeout: if the grace window doesn't
+    // fire, this test times out instead of passing at the backstop.
+    const stream = new FakeTtyStream();
+    const promise = readProbeReply(stream, () => {}, 60_000);
+    stream.emit("data", Buffer.from("\x1b]11;rgb:ffff/ffff/ffff\x07"));
+    expect(await promise).toBe("light");
+  }, 1000);
+
+  test("DA1 arriving inside the grace window still gets consumed", async () => {
+    const stream = new FakeTtyStream();
+    const promise = readProbeReply(stream, () => {}, 60_000);
+    stream.emit("data", Buffer.from("\x1b]11;rgb:1e1e/1e1e/1e1e\x07"));
+    setTimeout(() => stream.emit("data", Buffer.from("\x1b[?65;1;9c")), 5);
+    expect(await promise).toBe("dark");
+  }, 1000);
+
+  test("resolves null at timeout when nothing arrives", async () => {
+    const stream = new FakeTtyStream();
+    expect(await readProbeReply(stream, () => {}, 20)).toBeNull();
+  });
+
+  test("resolves null on stream error", async () => {
+    const stream = new FakeTtyStream();
+    const promise = readProbeReply(stream, () => {}, 5000);
+    stream.emit("error", new Error("boom"));
+    expect(await promise).toBeNull();
+  });
+
+  test("restores raw mode and destroys the stream after settling", async () => {
+    const stream = new FakeTtyStream();
+    const promise = readProbeReply(stream, () => {}, 5000);
+    expect(stream.rawMode).toBe(true);
+    stream.emit("data", Buffer.from("\x1b[?65;1;9c"));
+    await promise;
+    expect(stream.rawMode).toBe(false);
+    expect(stream.destroyed).toBe(true);
   });
 });

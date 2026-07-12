@@ -229,11 +229,13 @@ export function parseOsc11Response(raw: string): Appearance | null {
   return luminance > 0.5 ? "light" : "dark";
 }
 
+// The cache is a pure optimization — an unreadable or unwritable home dir
+// must degrade to probing, never break appearance resolution (or whatever
+// command needed a theme, e.g. --help).
 export function getCachedAppearance(fs: AppFs): Appearance | null {
-  const raw = fs.read(CACHE_PATH);
-  if (raw === null) return null;
-
   try {
+    const raw = fs.read(CACHE_PATH);
+    if (raw === null) return null;
     const data = JSON.parse(raw) as { appearance?: string; ts?: number };
     if (data.appearance !== "dark" && data.appearance !== "light") return null;
     if (typeof data.ts !== "number") return null;
@@ -245,28 +247,53 @@ export function getCachedAppearance(fs: AppFs): Appearance | null {
 }
 
 export function cacheAppearance(fs: AppFs, appearance: Appearance): void {
-  fs.write(CACHE_PATH, JSON.stringify({ appearance, ts: Date.now() }));
+  try {
+    fs.write(CACHE_PATH, JSON.stringify({ appearance, ts: Date.now() }));
+  } catch {
+    // best-effort
+  }
 }
 
-export async function queryTerminalBackground(timeoutMs = 50): Promise<Appearance | null> {
-  if (!process.stderr.isTTY) return null;
+// DA1 (Primary Device Attributes) reply: CSI ? <params> c. Every terminal
+// answers DA1, and replies arrive in request order — so a DA1 reply means
+// the terminal has already said everything it will say about OSC 11.
+export function hasDa1Response(buf: string): boolean {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: matching an ANSI escape sequence
+  return /\x1b\[\?[\d;]*c/.test(buf);
+}
 
-  let fd: number;
-  try {
-    fd = openSync("/dev/tty", "r");
-  } catch {
-    return null;
-  }
+type ProbeStream = {
+  on(event: "data", cb: (chunk: Buffer) => void): unknown;
+  on(event: "error", cb: () => void): unknown;
+  setRawMode(mode: boolean): unknown;
+  destroy(): void;
+};
 
+// A complete OSC 11 reply without the DA1 sentinel yet (mux filtering DA1,
+// or a terminal that answers OSC but not DA1): wait this long for the
+// trailing DA1 so it gets consumed too, then resolve with what we have.
+const OSC_GRACE_MS = 100;
+
+// Sends OSC 11 + DA1 together and reads until the DA1 sentinel arrives, so
+// the wait is bounded by the terminal's real round-trip time (SSH included)
+// and both replies are consumed instead of leaking into the shell. The
+// timeout is a backstop for terminals that never answer DA1; it resolves
+// from whatever buffered, not null, in case only the OSC reply made it.
+export function readProbeReply(
+  stream: ProbeStream,
+  write: (s: string) => void,
+  timeoutMs: number,
+): Promise<Appearance | null> {
   return new Promise<Appearance | null>((resolve) => {
     let settled = false;
     let buf = "";
-    const stream = new ReadStream(fd);
+    let graceTimer: ReturnType<typeof setTimeout> | undefined;
 
     const cleanup = () => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(graceTimer);
       try {
         stream.setRawMode(false);
       } catch {
@@ -275,16 +302,19 @@ export async function queryTerminalBackground(timeoutMs = 50): Promise<Appearanc
       stream.destroy();
     };
 
-    const timer = setTimeout(() => {
+    const settle = () => {
       cleanup();
-      resolve(null);
-    }, timeoutMs);
+      resolve(parseOsc11Response(buf));
+    };
+
+    const timer = setTimeout(settle, timeoutMs);
 
     stream.on("data", (chunk: Buffer) => {
       buf += chunk.toString();
-      if (buf.includes("\x07") || buf.includes("\x1b\\")) {
-        cleanup();
-        resolve(parseOsc11Response(buf));
+      if (hasDa1Response(buf)) {
+        settle();
+      } else if (graceTimer === undefined && (buf.includes("\x07") || buf.includes("\x1b\\"))) {
+        graceTimer = setTimeout(settle, OSC_GRACE_MS);
       }
     });
 
@@ -295,12 +325,25 @@ export async function queryTerminalBackground(timeoutMs = 50): Promise<Appearanc
 
     try {
       stream.setRawMode(true);
-      process.stderr.write("\x1b]11;?\x07");
+      write("\x1b]11;?\x07\x1b[c");
     } catch {
       cleanup();
       resolve(null);
     }
   });
+}
+
+export async function queryTerminalBackground(timeoutMs = 2000): Promise<Appearance | null> {
+  if (!process.stderr.isTTY) return null;
+
+  let fd: number;
+  try {
+    fd = openSync("/dev/tty", "r");
+  } catch {
+    return null;
+  }
+
+  return readProbeReply(new ReadStream(fd), (s) => process.stderr.write(s), timeoutMs);
 }
 
 export async function resolveAppearance(opts: {
